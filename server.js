@@ -13,6 +13,10 @@ const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH |
 const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) &&
   !process.env.RAILWAY_VOLUME_MOUNT_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
+// 검색엔진용 대표 주소와 사이트 소유 확인 값 (구글 서치 콘솔, 네이버 서치어드바이저에서 받은 content 값)
+const SITE_URL = (process.env.SITE_URL || "https://aieo.kr").replace(/\/$/, "");
+const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || "";
+const NAVER_SITE_VERIFICATION = process.env.NAVER_SITE_VERIFICATION || "";
 // 신청자에게 문자로 보내는 수강 안내 페이지 주소 (public/info.html)
 const INFO_URL = process.env.INFO_URL || "aieo.kr/info";
 // 새 신청이 들어오면 알림 문자를 받을 번호 (여러 개는 쉼표로 구분)
@@ -207,12 +211,75 @@ function formatSlot(slot) {
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10kb" }));
+// Railway 기본 주소로 들어오면 대표 도메인으로 보냅니다(검색엔진에 주소가 둘로 나뉘지 않게). API는 그대로 둡니다.
+app.use((req, res, next) => {
+  if (req.method === "GET" && /\.up\.railway\.app$/.test(req.hostname) && !req.path.startsWith("/api/")) {
+    return res.redirect(301, SITE_URL + req.originalUrl);
+  }
+  next();
+});
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /api/\nDisallow: /info\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const lastmod = new Date(fs.statSync(path.join(__dirname, "public", "index.html")).mtime).toISOString().slice(0, 10);
+  res.type("application/xml").send(`<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>${SITE_URL}/</loc><lastmod>${lastmod}</lastmod><changefreq>weekly</changefreq><priority>1.0</priority></url>
+</urlset>
+`);
+});
+
+const htmlEsc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+// 검색엔진이 자바스크립트를 실행하지 않아도 일정이 보이도록 서버에서 미리 그려 둡니다.
+function openUpcomingSlots() {
+  const now = Date.now();
+  return loadSchedule().filter((s) => s.open && startsAt(s) > now);
+}
+function slotsSsr() {
+  const slots = openUpcomingSlots();
+  if (!slots.length) return '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>';
+  return "<ul class=\"muted\">" + slots.map((s) => `<li>${htmlEsc(formatSlot(s))} · ${htmlEsc(s.place)} · 정원 ${s.capacity}명</li>`).join("") + "</ul>";
+}
+// 구글 검색 결과에 강의 정보가 나오도록 하는 구조화 데이터(Course)
+function courseJsonLd() {
+  const data = {
+    "@context": "https://schema.org",
+    "@type": "Course",
+    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 만에 첫 서비스 만들기",
+    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 입문 강의.",
+    inLanguage: "ko",
+    url: SITE_URL + "/",
+    image: SITE_URL + "/og.png",
+    provider: { "@type": "Person", name: "Bill", jobTitle: "IT 회사 15년 차 서비스 기획자", email: "bill@neonex.team" },
+    offers: { "@type": "Offer", category: "Paid", price: 20000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
+    hasCourseInstance: openUpcomingSlots().map((s) => ({
+      "@type": "CourseInstance",
+      courseMode: "Onsite",
+      startDate: `${s.date}T${s.start}:00+09:00`,
+      endDate: `${s.date}T${s.end}:00+09:00`,
+      location: { "@type": "Place", name: s.place, address: { "@type": "PostalAddress", addressLocality: "강남구", addressRegion: "서울", addressCountry: "KR" } },
+      instructor: { "@type": "Person", name: "Bill" },
+    })),
+  };
+  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
+}
+
 // 카카오톡·페이스북 등은 미리보기 이미지 주소를 절대 경로로 요구해서, 접속한 도메인을 붙여 내려줍니다.
 const indexHtml = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
 app.get(["/", "/index.html"], (req, res) => {
   try { trackVisit(req, res); } catch (e) { console.error("visit log error", e); }
   const origin = `${req.protocol}://${req.get("host")}`;
-  res.type("html").send(indexHtml.replaceAll('content="/og.png"', `content="${origin}/og.png"`));
+  const verify =
+    (GOOGLE_SITE_VERIFICATION ? `<meta name="google-site-verification" content="${htmlEsc(GOOGLE_SITE_VERIFICATION)}">\n` : "") +
+    (NAVER_SITE_VERIFICATION ? `<meta name="naver-site-verification" content="${htmlEsc(NAVER_SITE_VERIFICATION)}">\n` : "");
+  res.type("html").send(indexHtml
+    .replaceAll('content="/og.png"', `content="${origin}/og.png"`)
+    .replace("<!--SEO_EXTRA-->", verify + courseJsonLd())
+    .replace("<!--SLOTS_SSR-->", slotsSsr()));
 });
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })); // /info → info.html
 

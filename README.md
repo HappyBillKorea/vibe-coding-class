@@ -18,6 +18,9 @@ Claude Code로 배우는 바이브 코딩 입문 오프라인 클래스(2시간)
 | `SOLAPI_SENDER` | 솔라피에 등록된 발신번호 |
 | `ADMIN_PHONE` | 새 신청 알림 문자를 받을 번호 (여러 개면 쉼표로 구분) |
 | `INFO_URL` | (선택) 신청 완료 문자에 넣는 안내 페이지 주소. 기본값 `aieo.kr/info` |
+| `SITE_URL` | (선택) 대표 주소. 기본값 `https://aieo.kr`. Railway 기본 주소로 들어오면 이 주소로 넘겨요 |
+| `GOOGLE_SITE_VERIFICATION` | (선택) 구글 서치 콘솔 HTML 태그의 content 값 |
+| `NAVER_SITE_VERIFICATION` | (선택) 네이버 서치어드바이저 HTML 태그의 content 값 |
 | `ADMIN_KEY` | 관리자 페이지 비밀번호 (저장소에는 넣지 마세요) |
 | `DATA_DIR` | (선택) 데이터 저장 경로. Railway에 볼륨을 붙이면 자동으로 그 경로를 써서 비워 둬도 돼요 |
 
@@ -29,3 +32,8 @@ npm install
 npm start
 ```
 솔라피 키 없이 실행하면 문자 대신 화면과 콘솔에 인증번호가 표시되는 개발 모드로 동작합니다.
+
+## 검색 최적화
+- `/robots.txt`, `/sitemap.xml` 은 서버가 자동으로 만들어요. 관리자·안내 페이지와 API는 검색에서 빠져요.
+- 첫 화면에 일정 목록과 강의 정보(Course), 자주 묻는 질문(FAQPage) 구조화 데이터를 서버에서 넣어 줘요.
+- 구글 서치 콘솔과 네이버 서치어드바이저에 `https://aieo.kr` 을 등록하고, 받은 확인 값을 위 환경 변수에 넣은 뒤 `https://aieo.kr/sitemap.xml` 을 제출하세요.
