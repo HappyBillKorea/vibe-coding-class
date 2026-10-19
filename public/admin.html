@@ -318,13 +318,23 @@
     $("#signupSummary").textContent = `전체 신청 ${signups.length}명`;
     $("#signupList").innerHTML = slots.length ? slots.map((s) => {
       const rows = signups.filter((x) => x.slot_id === s.id);
-      return `<div class="card group"><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span>${s.open ? "" : " <span class='pill off'>숨김</span>"}</h2>` +
+      return `<div class="card group"><div class="row" style="justify-content:space-between"><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span>${s.open ? "" : " <span class='pill off'>숨김</span>"}</h2>` +
+        (rows.length ? `<button class="btn ghost sm" data-notify="${esc(s.id)}" data-n="${rows.length}">안내 문자 보내기</button>` : "") + `</div>` +
         (rows.length ? `<div class="tbl"><table><tr><th>이름</th><th>전화번호</th><th>남긴 말</th><th>신청 시각</th><th></th></tr>` +
           rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="nowrap"><a href="tel:${r.phone}">${phone(r.phone)}</a></td><td>${esc(r.memo)}</td><td class="nowrap">${fmtTime(r.created_at)}</td><td><button class="btn danger sm" data-cancel="${r.id}">취소</button></td></tr>`).join("") + `</table></div>`
           : `<p class="muted" style="margin:0">아직 신청자가 없어요.</p>`) + `</div>`;
     }).join("") : '<p class="muted">등록된 일정이 없어요.</p>';
   }
   $("#signupList").addEventListener("click", async (e) => {
+    const nid = e.target.dataset.notify;
+    if (nid) {
+      if (!confirm(`이 일정 신청자 ${e.target.dataset.n}명에게 수강 안내 링크(aieo.kr/info)를 문자로 보낼까요?`)) return;
+      e.target.disabled = true;
+      try { const r = await api(`/api/admin/slots/${encodeURIComponent(nid)}/notify`, { method: "POST" }); alert(`${r.total}명 중 ${r.sent}명에게 보냈어요.`); }
+      catch (err) { alert(err.message); }
+      e.target.disabled = false;
+      return;
+    }
     const id = e.target.dataset.cancel;
     if (!id || !confirm("이 신청을 취소할까요? 자리가 다시 열려요.")) return;
     await api("/api/admin/signups/" + id, { method: "DELETE" });

@@ -13,6 +13,8 @@ const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH |
 const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) &&
   !process.env.RAILWAY_VOLUME_MOUNT_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
+// 신청자에게 문자로 보내는 수강 안내 페이지 주소 (public/info.html)
+const INFO_URL = process.env.INFO_URL || "aieo.kr/info";
 // 새 신청이 들어오면 알림 문자를 받을 번호 (여러 개는 쉼표로 구분)
 const ADMIN_PHONES = (process.env.ADMIN_PHONE || "").split(",").map((p) => p.replace(/\D/g, "")).filter(Boolean);
 
@@ -212,7 +214,7 @@ app.get(["/", "/index.html"], (req, res) => {
   const origin = `${req.protocol}://${req.get("host")}`;
   res.type("html").send(indexHtml.replaceAll('content="/og.png"', `content="${origin}/og.png"`));
 });
-app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })); // /info → info.html
 
 app.get("/api/slots", (req, res) => {
   const counts = Object.fromEntries(q.countBySlot.all().map((r) => [r.slot_id, r.n]));
@@ -320,7 +322,7 @@ app.post("/api/apply", async (req, res) => {
   q.deleteToken.run(t.token);
 
   if (smsConfigured()) {
-    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 장소: ${slot.place}`)
+    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
     const taken = q.countSlot.get(slot.id).n;
     const fmtPhone = t.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
@@ -456,6 +458,20 @@ app.delete("/api/admin/slots/:id", requireAdmin, (req, res) => {
   if (taken > 0) return res.status(400).json({ error: `신청자 ${taken}명이 있어 삭제할 수 없어요. 신청 받기를 끄거나 신청자를 먼저 취소해 주세요.` });
   q.deleteSlot.run(req.params.id);
   res.json({ success: true });
+});
+
+// 이미 신청한 사람들에게 수강 안내 링크를 다시 보냅니다.
+app.post("/api/admin/slots/:id/notify", requireAdmin, async (req, res) => {
+  const slot = q.getSlot.get(req.params.id);
+  if (!slot) return res.status(404).json({ error: "없는 일정이에요." });
+  if (!smsConfigured()) return res.status(503).json({ error: "문자 발송 설정이 안 되어 있어요." });
+  const people = q.listSignups.all().filter((r) => r.slot_id === slot.id);
+  const text = `[바이브코딩] ${shortSlot(slot)} 클래스 안내: ${INFO_URL}`;
+  let sent = 0;
+  for (const p of people) {
+    try { await sendSms(p.phone, text); sent++; } catch {}
+  }
+  res.json({ success: true, sent, total: people.length });
 });
 
 app.get("/api/admin/signups", requireAdmin, (req, res) => {
