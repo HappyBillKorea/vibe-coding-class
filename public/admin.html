@@ -4,62 +4,338 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>신청자 명단</title>
+<title>클래스 관리자</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
-  :root { --bg:#faf8f5; --surface:#fff; --ink:#1c1917; --muted:#6b645c; --line:#e7e2db; --accent:#d9622b; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#141210; --surface:#1e1b18; --ink:#f2ede6; --muted:#a8a097; --line:#34302b; --accent:#ef7a43; } }
-  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif; }
-  main { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
-  h1 { font-size: 1.5rem; }
-  .login { display:flex; gap:8px; }
-  input, button { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
-  button { background: var(--accent); color: #fff; border: 0; cursor: pointer; font-weight: 700; }
-  button.del { background: none; color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; font-weight: 400; }
-  section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; overflow-x: auto; }
-  h2 { font-size: 1.05rem; margin: 0 0 10px; }
-  h2 span { color: var(--accent); }
+  :root {
+    --bg: #faf8f5; --surface: #fff; --ink: #1c1917; --muted: #6b645c; --line: #e7e2db;
+    --accent: #d9622b; --accent-soft: #fbe9df; --accent-ink: #fff; --ok: #2a9d55; --bad: #d33;
+    --bar2: #e9b48f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141210; --surface: #1e1b18; --ink: #f2ede6; --muted: #a8a097; --line: #34302b;
+      --accent: #ef7a43; --accent-soft: #3a2519; --accent-ink: #1c1917; --ok: #5cc985; --bad: #ff6b6b; --bar2: #7a4a2e; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font-family: "Noto Sans KR", system-ui, sans-serif; word-break: keep-all; }
+  main { max-width: 1000px; margin: 0 auto; padding: 28px 16px 60px; }
+  h1 { font-size: 1.5rem; margin: 0 0 20px; font-weight: 900; }
+  h2 { font-size: 1.1rem; margin: 0 0 14px; }
+  input, select, button { font: inherit; }
+  input, select { padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+  input:focus, select:focus { outline: none; border-color: var(--accent); }
+  .btn { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 10px 18px; font-weight: 700; cursor: pointer; }
+  .btn.ghost { background: none; color: var(--ink); border: 1.5px solid var(--line); }
+  .btn.sm { padding: 5px 12px; font-size: .88rem; font-weight: 500; }
+  .btn.danger { background: none; color: var(--bad); border: 1px solid var(--line); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+
+  .login { max-width: 360px; margin: 12vh auto 0; text-align: center; }
+  .login form { display: flex; gap: 8px; margin-top: 16px; }
+  .login input { flex: 1; min-width: 0; }
+  .err { color: var(--bad); min-height: 1.4em; font-size: .92rem; }
+  #slotErr { margin: 8px 0 0; min-height: 0; }
+  a { color: inherit; }
+  a.btn { text-decoration: none; }
+  .nowrap { white-space: nowrap; }
+
+  .top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 22px; overflow-x: auto; }
+  .tabs button { background: none; border: 0; padding: 10px 14px; color: var(--muted); font-weight: 700; cursor: pointer; border-bottom: 2.5px solid transparent; white-space: nowrap; }
+  .tabs button.on { color: var(--accent); border-color: var(--accent); }
+
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .kpi .l { color: var(--muted); font-size: .88rem; }
+  .kpi .v { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .kpi .s { color: var(--muted); font-size: .85rem; }
+  .sms { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .sms .l { color: var(--muted); font-size: .88rem; }
+  .sms .v { font-size: 1.4rem; font-weight: 900; font-variant-numeric: tabular-nums; }
+  .sms .muted { font-size: .88rem; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  .chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 8px; }
+  .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; position: relative; }
+  .chart .bar { width: 100%; max-width: 28px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .chart .col:hover .tip { display: block; }
+  .tip { display: none; position: absolute; bottom: 100%; background: var(--ink); color: var(--bg); font-size: .78rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 2; }
+  .axis { display: flex; gap: 4px; margin-top: 6px; }
+  .axis span { flex: 1; text-align: center; font-size: .72rem; color: var(--muted); min-width: 0; overflow: hidden; }
+
+  .src { display: grid; grid-template-columns: 120px 1fr 64px; gap: 10px; align-items: center; padding: 7px 0; font-size: .93rem; }
+  .src .track { height: 10px; background: var(--accent-soft); border-radius: 5px; overflow: hidden; }
+  .src .fill { height: 100%; background: var(--accent); border-radius: 5px; }
+  .src .n { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+  .src .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
   table { width: 100%; border-collapse: collapse; font-size: .92rem; }
-  td, th { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
-  th { color: var(--muted); font-weight: 500; }
-  .empty { color: var(--muted); }
-  #err { color: #d33; }
+  td, th { text-align: left; padding: 9px 6px; border-top: 1px solid var(--line); vertical-align: middle; }
+  th { color: var(--muted); font-weight: 500; font-size: .85rem; }
+  .tbl { overflow-x: auto; }
+  .muted { color: var(--muted); }
+  .pill { display: inline-block; font-size: .78rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); }
+  .pill.off { background: var(--line); color: var(--muted); }
+
+  .form-grid { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.6fr .7fr auto; gap: 8px; align-items: end; }
+  .form-grid label { font-size: .82rem; color: var(--muted); display: flex; flex-direction: column; gap: 4px; }
+  .form-grid input { width: 100%; }
+  .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: .9rem; }
+  .switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .group h2 span { color: var(--accent); }
+
+  @media (max-width: 760px) {
+    .kpis { grid-template-columns: 1fr 1fr 1fr; }
+    .kpi .v { font-size: 1.4rem; }
+    .form-grid { grid-template-columns: 1fr 1fr; }
+    .src { grid-template-columns: 90px 1fr 54px; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <h1>신청자 명단</h1>
-  <form class="login" id="login"><input type="password" id="key" placeholder="관리자 비밀번호 (ADMIN_KEY)" autocomplete="current-password"><button>보기</button></form>
-  <p id="err"></p>
-  <div id="list"></div>
-</main>
-<script>
-  let key = sessionStorage.getItem("adminKey") || "";
-  const list = document.getElementById("list"), err = document.getElementById("err");
-  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  const phone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
+  <section class="login" id="loginView">
+    <h1>클래스 관리자</h1>
+    <form id="loginForm"><input type="password" id="key" placeholder="관리자 비밀번호" autocomplete="current-password" autofocus><button class="btn">들어가기</button></form>
+    <p class="err" id="loginErr"></p>
+  </section>
 
-  async function load() {
-    err.textContent = "";
-    const res = await fetch("/api/admin/signups", { headers: { "x-admin-key": key } });
-    const data = await res.json();
-    if (!res.ok) { err.textContent = data.error; list.innerHTML = ""; return; }
-    sessionStorage.setItem("adminKey", key);
-    list.innerHTML = data.slots.map((s) => {
-      const rows = data.signups.filter((x) => x.slot_id === s.id);
-      return `<section><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span></h2>` +
-        (rows.length ? `<table><tr><th>이름</th><th>전화번호</th><th>남긴 말</th><th>신청 시각</th><th></th></tr>` +
-          rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${phone(r.phone)}</td><td>${esc(r.memo)}</td><td>${new Date(r.created_at).toLocaleString("ko-KR")}</td><td><button class="del" data-id="${r.id}">취소</button></td></tr>`).join("") + `</table>`
-          : `<p class="empty">아직 신청자가 없어요.</p>`) + `</section>`;
-    }).join("");
+  <div id="app" hidden>
+    <div class="top">
+      <h1 style="margin:0">클래스 관리자</h1>
+      <div class="row"><a class="btn ghost sm" href="/" target="_blank">사이트 보기 ↗</a><button class="btn ghost sm" id="logout">로그아웃</button></div>
+    </div>
+    <nav class="tabs">
+      <button data-tab="stats" class="on">방문 통계</button>
+      <button data-tab="slots">강의 일정</button>
+      <button data-tab="signups">신청자</button>
+    </nav>
+
+    <!-- 방문 통계 -->
+    <section data-view="stats">
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <span class="muted" id="rangeLabel"></span>
+        <select id="days"><option value="7">최근 7일</option><option value="14" selected>최근 14일</option><option value="30">최근 30일</option><option value="90">최근 90일</option></select>
+      </div>
+      <div class="kpis">
+        <div class="kpi"><div class="l">오늘 방문자</div><div class="v" id="kTodayV">-</div><div class="s" id="kTodayPv"></div></div>
+        <div class="kpi"><div class="l">기간 방문자</div><div class="v" id="kTotalV">-</div><div class="s" id="kTotalPv"></div></div>
+        <div class="kpi"><div class="l">기간 신청</div><div class="v" id="kSignups">-</div><div class="s" id="kConv"></div></div>
+      </div>
+      <div class="card sms">
+        <div><div class="l">문자 잔액 (솔라피)</div><div class="v" id="smsBal">-</div></div>
+        <div class="muted" id="smsNote"></div>
+      </div>
+      <div class="card">
+        <h2>일별 방문자</h2>
+        <div class="chart" id="chart"></div>
+        <div class="axis" id="axis"></div>
+      </div>
+      <div class="card">
+        <h2>유입 경로 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
+        <div id="sources"></div>
+      </div>
+      <div class="card">
+        <h2>들어온 주소</h2>
+        <div class="tbl"><table id="refs"></table></div>
+        <p class="muted" style="font-size:.85rem;margin:10px 0 0">카카오톡·인스타그램 앱 안에서 연 링크는 주소가 남지 않아서 위 유입 경로에만 집계돼요. 링크 끝에 <code>?utm_source=이름</code>을 붙여 공유하면 그 이름으로 따로 집계돼요.</p>
+      </div>
+    </section>
+
+    <!-- 강의 일정 -->
+    <section data-view="slots" hidden>
+      <div class="card">
+        <h2 id="slotFormTitle">일정 추가</h2>
+        <form id="slotForm" class="form-grid">
+          <label>날짜<input type="date" name="date" required></label>
+          <label>시작<input type="time" name="start" value="14:00" required></label>
+          <label>종료<input type="time" name="end" value="16:00" required></label>
+          <label>장소<input name="place" value="강남" required></label>
+          <label>정원<input type="number" name="capacity" value="6" min="1" max="100" required></label>
+          <div class="row"><button class="btn" id="slotSubmit">추가</button><button type="button" class="btn ghost" id="slotCancel" hidden>취소</button></div>
+        </form>
+        <p class="err" id="slotErr"></p>
+      </div>
+      <div class="card">
+        <h2>등록된 일정</h2>
+        <div class="tbl"><table id="slotTable"></table></div>
+      </div>
+    </section>
+
+    <!-- 신청자 -->
+    <section data-view="signups" hidden>
+      <div class="row" style="justify-content:space-between;margin-bottom:12px">
+        <span class="muted" id="signupSummary"></span>
+        <button class="btn ghost sm" id="csv">엑셀(CSV) 내려받기</button>
+      </div>
+      <div id="signupList"></div>
+    </section>
+  </div>
+</main>
+
+<script>
+  let key = "";
+  try { key = sessionStorage.getItem("adminKey") || ""; } catch {}
+  const $ = (s) => document.querySelector(s);
+  const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+  const phone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
+  const fmtTime = (ts) => new Date(ts).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+  let signupData = null;
+
+  async function api(url, opts = {}) {
+    const res = await fetch(url, { ...opts, headers: { "Content-Type": "application/json", "x-admin-key": key, ...(opts.headers || {}) } });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 || res.status === 429) { showLogin(data.error); throw new Error(data.error); }
+    if (!res.ok) throw new Error(data.error || "오류가 났어요.");
+    return data;
   }
-  document.getElementById("login").addEventListener("submit", (e) => { e.preventDefault(); key = document.getElementById("key").value; load(); });
-  list.addEventListener("click", async (e) => {
-    const id = e.target.dataset.id;
-    if (!id || !confirm("이 신청을 취소할까요?")) return;
-    await fetch("/api/admin/signups/" + id, { method: "DELETE", headers: { "x-admin-key": key } });
-    load();
+
+  function showLogin(msg) {
+    $("#app").hidden = true; $("#loginView").hidden = false; $("#loginErr").textContent = msg || "";
+    try { sessionStorage.removeItem("adminKey"); } catch {}
+  }
+  async function enter() {
+    await loadStats();
+    try { sessionStorage.setItem("adminKey", key); } catch {}
+    $("#loginView").hidden = true; $("#app").hidden = false;
+  }
+  $("#loginForm").addEventListener("submit", (e) => { e.preventDefault(); key = $("#key").value; enter().catch(() => {}); });
+  $("#logout").addEventListener("click", () => { key = ""; showLogin(); });
+
+  // 탭
+  const loaders = { stats: loadStats, slots: loadSlots, signups: loadSignups };
+  document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
+    document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
+    document.querySelectorAll("[data-view]").forEach((v) => v.hidden = v.dataset.view !== b.dataset.tab);
+    loaders[b.dataset.tab]().catch(() => {});
+  }));
+
+  // ── 방문 통계 ──
+  $("#days").addEventListener("change", () => loadStats().catch(() => {}));
+  async function loadStats() {
+    const d = await api("/api/admin/stats?days=" + $("#days").value);
+    loadSms();
+    $("#kTodayV").textContent = d.today.visitors.toLocaleString();
+    $("#kTodayPv").textContent = `페이지뷰 ${d.today.views.toLocaleString()} · 신청 ${d.today.signups}`;
+    $("#kTotalV").textContent = d.total.visitors.toLocaleString();
+    $("#kTotalPv").textContent = `페이지뷰 ${d.total.views.toLocaleString()}`;
+    $("#kSignups").textContent = d.total.signups;
+    $("#kConv").textContent = d.total.visitors ? `방문자 대비 ${(d.total.signups / d.total.visitors * 100).toFixed(1)}%` : "";
+    $("#rangeLabel").textContent = `${d.daily[0].date} ~ ${d.daily[d.daily.length - 1].date} (한국 시간)`;
+
+    const max = Math.max(1, ...d.daily.map((x) => x.visitors));
+    $("#chart").innerHTML = d.daily.map((x) =>
+      `<div class="col"><div class="tip">${x.date.slice(5)} · 방문자 ${x.visitors} · 뷰 ${x.views} · 신청 ${x.signups}</div><div class="bar" style="height:${x.visitors / max * 100}%"></div></div>`).join("");
+    const step = Math.ceil(d.daily.length / 10);
+    $("#axis").innerHTML = d.daily.map((x, i) => `<span>${i % step === 0 ? Number(x.date.slice(8)) : ""}</span>`).join("");
+
+    const smax = Math.max(1, ...d.sources.map((x) => x.visitors));
+    $("#sources").innerHTML = d.sources.length ? d.sources.map((x) =>
+      `<div class="src"><span class="name" title="${esc(x.name)}">${esc(x.name)}</span><div class="track"><div class="fill" style="width:${x.visitors / smax * 100}%"></div></div><span class="n">${x.visitors}</span></div>`).join("")
+      : '<p class="muted">아직 방문 기록이 없어요.</p>';
+
+    $("#refs").innerHTML = d.referrers.length
+      ? "<tr><th>주소</th><th style='text-align:right'>방문</th></tr>" + d.referrers.map((r) => `<tr><td>${esc(r.url)}</td><td style="text-align:right">${r.n}</td></tr>`).join("")
+      : '<tr><td class="muted">아직 기록이 없어요.</td></tr>';
+  }
+
+  async function loadSms() {
+    try {
+      const d = await api("/api/admin/sms-balance");
+      if (!d.configured) { $("#smsBal").textContent = "연결 안 됨"; $("#smsNote").textContent = "SOLAPI 키가 설정되지 않았어요."; return; }
+      $("#smsBal").textContent = `${Number(d.balance).toLocaleString()}원` + (d.point ? ` + ${Number(d.point).toLocaleString()}P` : "");
+      $("#smsNote").textContent = d.notifyTo ? `새 신청 알림 문자 ${d.notifyTo}개 번호로 발송 중` : "새 신청 알림 번호(ADMIN_PHONE) 미설정";
+    } catch (e) { $("#smsBal").textContent = "-"; $("#smsNote").textContent = e.message; }
+  }
+
+  // ── 강의 일정 ──
+  let editingId = null;
+  const form = $("#slotForm");
+  async function loadSlots() {
+    const { slots } = await api("/api/admin/slots");
+    $("#slotTable").innerHTML = slots.length
+      ? "<tr><th>일시</th><th>장소</th><th>신청</th><th>신청 받기</th><th></th></tr>" + slots.map((s) => `
+        <tr${s.past ? ' class="muted"' : ""}>
+          <td>${esc(s.label)}${s.past ? " <span class='pill off'>지남</span>" : ""}</td>
+          <td>${esc(s.place)}</td>
+          <td>${s.taken}/${s.capacity}명</td>
+          <td><label class="switch"><input type="checkbox" data-toggle="${esc(s.id)}" ${s.open ? "checked" : ""}> ${s.open ? "공개" : "숨김"}</label></td>
+          <td style="white-space:nowrap"><button class="btn ghost sm" data-edit="${esc(s.id)}">수정</button> <button class="btn danger sm" data-del="${esc(s.id)}">삭제</button></td>
+        </tr>`).join("")
+      : '<tr><td class="muted">등록된 일정이 없어요. 위에서 추가해 주세요.</td></tr>';
+    $("#slotTable").slots = slots;
+  }
+  function resetForm() {
+    editingId = null; form.reset();
+    $("#slotFormTitle").textContent = "일정 추가"; $("#slotSubmit").textContent = "추가"; $("#slotCancel").hidden = true; $("#slotErr").textContent = "";
+  }
+  $("#slotCancel").addEventListener("click", resetForm);
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#slotErr").textContent = "";
+    const body = Object.fromEntries(new FormData(form));
+    if (editingId) body.open = $("#slotTable").slots.find((s) => s.id === editingId).open;
+    try {
+      await api(editingId ? "/api/admin/slots/" + encodeURIComponent(editingId) : "/api/admin/slots",
+        { method: editingId ? "PUT" : "POST", body: JSON.stringify(body) });
+      resetForm(); await loadSlots();
+    } catch (err) { $("#slotErr").textContent = err.message; }
   });
-  if (key) load();
+  $("#slotTable").addEventListener("click", async (e) => {
+    const slots = $("#slotTable").slots;
+    if (e.target.dataset.edit) {
+      const s = slots.find((x) => x.id === e.target.dataset.edit);
+      editingId = s.id;
+      for (const k of ["date", "start", "end", "place", "capacity"]) form[k].value = s[k];
+      $("#slotFormTitle").textContent = "일정 수정"; $("#slotSubmit").textContent = "저장"; $("#slotCancel").hidden = false;
+      form.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    if (e.target.dataset.del) {
+      if (!confirm("이 일정을 삭제할까요?")) return;
+      try { await api("/api/admin/slots/" + encodeURIComponent(e.target.dataset.del), { method: "DELETE" }); await loadSlots(); }
+      catch (err) { alert(err.message); }
+    }
+  });
+  $("#slotTable").addEventListener("change", async (e) => {
+    const id = e.target.dataset.toggle; if (!id) return;
+    const s = $("#slotTable").slots.find((x) => x.id === id);
+    try { await api("/api/admin/slots/" + encodeURIComponent(id), { method: "PUT", body: JSON.stringify({ ...s, open: e.target.checked }) }); }
+    catch (err) { alert(err.message); }
+    await loadSlots();
+  });
+
+  // ── 신청자 ──
+  async function loadSignups() {
+    signupData = await api("/api/admin/signups");
+    const { slots, signups } = signupData;
+    $("#signupSummary").textContent = `전체 신청 ${signups.length}명`;
+    $("#signupList").innerHTML = slots.length ? slots.map((s) => {
+      const rows = signups.filter((x) => x.slot_id === s.id);
+      return `<div class="card group"><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span>${s.open ? "" : " <span class='pill off'>숨김</span>"}</h2>` +
+        (rows.length ? `<div class="tbl"><table><tr><th>이름</th><th>전화번호</th><th>남긴 말</th><th>신청 시각</th><th></th></tr>` +
+          rows.map((r) => `<tr><td>${esc(r.name)}</td><td class="nowrap"><a href="tel:${r.phone}">${phone(r.phone)}</a></td><td>${esc(r.memo)}</td><td class="nowrap">${fmtTime(r.created_at)}</td><td><button class="btn danger sm" data-cancel="${r.id}">취소</button></td></tr>`).join("") + `</table></div>`
+          : `<p class="muted" style="margin:0">아직 신청자가 없어요.</p>`) + `</div>`;
+    }).join("") : '<p class="muted">등록된 일정이 없어요.</p>';
+  }
+  $("#signupList").addEventListener("click", async (e) => {
+    const id = e.target.dataset.cancel;
+    if (!id || !confirm("이 신청을 취소할까요? 자리가 다시 열려요.")) return;
+    await api("/api/admin/signups/" + id, { method: "DELETE" });
+    loadSignups();
+  });
+  $("#csv").addEventListener("click", () => {
+    if (!signupData) return;
+    const label = Object.fromEntries(signupData.slots.map((s) => [s.id, `${s.label} ${s.place}`]));
+    const cell = (v) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+    const lines = [["일정", "이름", "전화번호", "남긴 말", "신청 시각"].map(cell).join(",")]
+      .concat(signupData.signups.map((r) => [label[r.slot_id] || r.slot_id, r.name, phone(r.phone), r.memo, new Date(r.created_at).toLocaleString("ko-KR")].map(cell).join(",")));
+    const blob = new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = `신청자_${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  });
+
+  if (key) enter().catch(() => {});
 </script>
 </body>
 </html>
