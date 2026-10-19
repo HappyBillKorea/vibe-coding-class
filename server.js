@@ -7,7 +7,11 @@ const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
-const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, "data");
+// Railway에 볼륨을 붙이면 RAILWAY_VOLUME_MOUNT_PATH가 자동으로 생겨서, 따로 DATA_DIR을 안 넣어도 그 경로에 저장합니다.
+const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, "data");
+// Railway에서 볼륨 없이 돌고 있으면 재배포 때 데이터가 지워집니다. 관리자 화면에 경고를 띄웁니다.
+const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) &&
+  !process.env.RAILWAY_VOLUME_MOUNT_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 // 새 신청이 들어오면 알림 문자를 받을 번호 (여러 개는 쉼표로 구분)
 const ADMIN_PHONES = (process.env.ADMIN_PHONE || "").split(",").map((p) => p.replace(/\D/g, "")).filter(Boolean);
@@ -463,7 +467,13 @@ app.delete("/api/admin/signups/:id", requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+app.get("/api/admin/storage", requireAdmin, (req, res) => {
+  res.json({ dataDir: DATA_DIR, persistent: !DATA_NOT_PERSISTENT });
+});
+
 app.listen(PORT, () => {
   console.log(`서버 실행 중: http://localhost:${PORT}`);
+  console.log(`데이터 저장 위치: ${DATA_DIR}`);
+  if (DATA_NOT_PERSISTENT) console.warn("⚠️ Railway 볼륨이 없어 재배포하면 일정·신청·통계 데이터가 지워집니다.");
   if (!smsConfigured()) console.log("솔라피 키가 없어 개발 모드로 인증번호를 콘솔에 출력합니다.");
 });

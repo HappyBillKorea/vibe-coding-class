@@ -55,6 +55,7 @@
   .sms .l { color: var(--muted); font-size: .88rem; }
   .sms .v { font-size: 1.4rem; font-weight: 900; font-variant-numeric: tabular-nums; }
   .sms .muted { font-size: .88rem; }
+  .warn { background: #fff3c4; color: #5c4400; border: 1px solid #f0d77a; border-radius: 12px; padding: 14px 16px; margin-bottom: 18px; font-size: .93rem; line-height: 1.6; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 
   .chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 8px; }
@@ -106,6 +107,10 @@
     <div class="top">
       <h1 style="margin:0">클래스 관리자</h1>
       <div class="row"><a class="btn ghost sm" href="/" target="_blank">사이트 보기 ↗</a><button class="btn ghost sm" id="logout">로그아웃</button></div>
+    </div>
+    <div class="warn" id="storageWarn" hidden>
+      <b>⚠️ 데이터가 저장되지 않는 상태예요.</b> 지금은 재배포할 때마다 일정·신청자·통계가 지워져요.
+      Railway 화면에서 서비스 카드를 우클릭해 <b>Attach Volume</b>을 누르고 마운트 경로를 <code>/data</code>로 정해 주세요. 볼륨을 붙인 뒤 일정은 다시 입력해야 해요.
     </div>
     <nav class="tabs">
       <button data-tab="stats" class="on">방문 통계</button>
@@ -198,6 +203,7 @@
   }
   async function enter() {
     await loadStats();
+    api("/api/admin/storage").then((d) => { $("#storageWarn").hidden = d.persistent; }).catch(() => {});
     try { sessionStorage.setItem("adminKey", key); } catch {}
     $("#loginView").hidden = true; $("#app").hidden = false;
   }
