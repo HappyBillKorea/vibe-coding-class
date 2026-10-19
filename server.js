@@ -218,7 +218,26 @@ app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })
 
 // 수강 안내 페이지의 장소 미리보기: 네이버 지도 공유 링크의 og 태그(제목·이미지)를 읽어 하루 동안 캐시합니다.
 const PLACE_URL = process.env.PLACE_URL || "https://naver.me/Fk76MHgd";
+const PLACE_ZOOM_OUT = Number(process.env.PLACE_ZOOM_OUT || 3); // 미리보기 지도를 몇 단계 더 넓게 보여줄지
 let placeCache = { at: 0, data: null };
+// 네이버 정적 지도 이미지 주소의 확대 단계(level/zoom)를 낮춰 더 넓은 범위가 보이게 합니다.
+function zoomOutMap(image, steps) {
+  try {
+    const u = new URL(image);
+    let changed = false;
+    for (const key of ["level", "zoom", "z"]) {
+      const v = Number(u.searchParams.get(key));
+      if (u.searchParams.has(key) && Number.isFinite(v)) { u.searchParams.set(key, String(Math.max(1, v - steps))); changed = true; }
+    }
+    // search.pstatic.net/common/?src=... 처럼 다른 주소로 감싼 경우 안쪽 주소도 바꿉니다.
+    const inner = u.searchParams.get("src");
+    if (inner && /^https?:\/\//.test(inner)) {
+      const z = zoomOutMap(inner, steps);
+      if (z !== inner) { u.searchParams.set("src", z); changed = true; }
+    }
+    return changed ? u.toString() : image;
+  } catch { return image; }
+}
 function metaContent(html, prop) {
   const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*>`, "i");
   const tag = (html.match(re) || [])[0];
@@ -236,6 +255,7 @@ app.get("/api/place-preview", async (req, res) => {
     const html = (await r.text()).slice(0, 300000);
     let image = metaContent(html, "og:image");
     if (image.startsWith("//")) image = "https:" + image;
+    image = zoomOutMap(image, PLACE_ZOOM_OUT);
     const data = {
       url: PLACE_URL,
       title: metaContent(html, "og:title"),
