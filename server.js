@@ -20,6 +20,8 @@ const IGNORED_DATA_DIR = Boolean(VOLUME_PATH && requestedDir && !isInside(reques
 const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) && !VOLUME_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 // 검색엔진용 대표 주소와 사이트 소유 확인 값 (구글 서치 콘솔, 네이버 서치어드바이저에서 받은 content 값)
+// 배포 구분용 (서버가 시작된 시각). 재배포가 반영됐는지 확인할 때 씁니다.
+const BUILD_ID = process.env.RAILWAY_DEPLOYMENT_ID || new Date().toISOString();
 const SITE_URL = (process.env.SITE_URL || "https://aieo.kr").replace(/\/$/, "");
 const GOOGLE_SITE_VERIFICATION = process.env.GOOGLE_SITE_VERIFICATION || "";
 const NAVER_SITE_VERIFICATION = process.env.NAVER_SITE_VERIFICATION || "";
@@ -285,7 +287,8 @@ app.get(["/", "/index.html"], (req, res) => {
   res.type("html").send(indexHtml
     .replaceAll('content="/og.png"', `content="${origin}/og.png"`)
     .replace("<!--SEO_EXTRA-->", verify + courseJsonLd())
-    .replace("<!--SLOTS_SSR-->", slotsSsr()));
+    .replace("<!--SLOTS_SSR-->", slotsSsr())
+    .replace("</head>", `<meta name="build-id" content="${BUILD_ID}">\n</head>`));
 });
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })); // /info → info.html
 
