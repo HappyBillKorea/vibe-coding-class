@@ -183,6 +183,13 @@ function kstDay(ts) {
   return new Date(ts + 9 * 3600 * 1000).toISOString().slice(0, 10);
 }
 
+// 문자용 짧은 일정 표기: 11/14(토)14:00
+function shortSlot(slot) {
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  const [, m, dd] = slot.date.split("-");
+  return `${Number(m)}/${Number(dd)}(${days[new Date(`${slot.date}T12:00:00Z`).getUTCDay()]})${slot.start}`;
+}
+
 function formatSlot(slot) {
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   const [, m, dd] = slot.date.split("-");
@@ -253,7 +260,7 @@ app.post("/api/send-code", async (req, res) => {
   }
 
   try {
-    await sendSms(phone, `[바이브코딩 클래스] 인증번호 ${code} (3분 안에 입력해 주세요)`);
+    await sendSms(phone, `[바이브코딩] 인증번호 ${code} (3분 내 입력)`);
     res.json({ success: true });
   } catch (e) {
     q.deleteCode.run(phone);
@@ -309,11 +316,11 @@ app.post("/api/apply", async (req, res) => {
   q.deleteToken.run(t.token);
 
   if (smsConfigured()) {
-    sendSms(t.phone, `[바이브코딩 클래스] ${name}님, ${formatSlot(slot)} 클래스 신청이 완료됐어요. 장소: ${slot.place}`)
+    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 장소: ${slot.place}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
     const taken = q.countSlot.get(slot.id).n;
     const fmtPhone = t.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
-    const note = `[바이브코딩 새 신청]\n${name} ${fmtPhone}\n${formatSlot(slot)} (${taken}/${slot.capacity}명)` + (memo ? `\n남긴 말: ${memo}` : "");
+    const note = `[새신청] ${name.slice(0, 5)} ${fmtPhone} ${shortSlot(slot)} ${taken}/${slot.capacity}명`;
     for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
