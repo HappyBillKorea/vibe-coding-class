@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>신청자 명단</title>
+<style>
+  :root { --bg:#faf8f5; --surface:#fff; --ink:#1c1917; --muted:#6b645c; --line:#e7e2db; --accent:#d9622b; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#141210; --surface:#1e1b18; --ink:#f2ede6; --muted:#a8a097; --line:#34302b; --accent:#ef7a43; } }
+  body { margin:0; background:var(--bg); color:var(--ink); font-family: system-ui, -apple-system, "Noto Sans KR", sans-serif; }
+  main { max-width: 900px; margin: 0 auto; padding: 32px 16px; }
+  h1 { font-size: 1.5rem; }
+  .login { display:flex; gap:8px; }
+  input, button { font: inherit; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--line); background: var(--surface); color: var(--ink); }
+  button { background: var(--accent); color: #fff; border: 0; cursor: pointer; font-weight: 700; }
+  button.del { background: none; color: var(--muted); border: 1px solid var(--line); padding: 4px 10px; font-weight: 400; }
+  section { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin: 16px 0; overflow-x: auto; }
+  h2 { font-size: 1.05rem; margin: 0 0 10px; }
+  h2 span { color: var(--accent); }
+  table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+  td, th { text-align: left; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 500; }
+  .empty { color: var(--muted); }
+  #err { color: #d33; }
+</style>
+</head>
+<body>
+<main>
+  <h1>신청자 명단</h1>
+  <form class="login" id="login"><input type="password" id="key" placeholder="관리자 비밀번호 (ADMIN_KEY)" autocomplete="current-password"><button>보기</button></form>
+  <p id="err"></p>
+  <div id="list"></div>
+</main>
+<script>
+  let key = sessionStorage.getItem("adminKey") || "";
+  const list = document.getElementById("list"), err = document.getElementById("err");
+  const esc = (t) => String(t ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const phone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
+
+  async function load() {
+    err.textContent = "";
+    const res = await fetch("/api/admin/signups", { headers: { "x-admin-key": key } });
+    const data = await res.json();
+    if (!res.ok) { err.textContent = data.error; list.innerHTML = ""; return; }
+    sessionStorage.setItem("adminKey", key);
+    list.innerHTML = data.slots.map((s) => {
+      const rows = data.signups.filter((x) => x.slot_id === s.id);
+      return `<section><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span></h2>` +
+        (rows.length ? `<table><tr><th>이름</th><th>전화번호</th><th>남긴 말</th><th>신청 시각</th><th></th></tr>` +
+          rows.map((r) => `<tr><td>${esc(r.name)}</td><td>${phone(r.phone)}</td><td>${esc(r.memo)}</td><td>${new Date(r.created_at).toLocaleString("ko-KR")}</td><td><button class="del" data-id="${r.id}">취소</button></td></tr>`).join("") + `</table>`
+          : `<p class="empty">아직 신청자가 없어요.</p>`) + `</section>`;
+    }).join("");
+  }
+  document.getElementById("login").addEventListener("submit", (e) => { e.preventDefault(); key = document.getElementById("key").value; load(); });
+  list.addEventListener("click", async (e) => {
+    const id = e.target.dataset.id;
+    if (!id || !confirm("이 신청을 취소할까요?")) return;
+    await fetch("/api/admin/signups/" + id, { method: "DELETE", headers: { "x-admin-key": key } });
+    load();
+  });
+  if (key) load();
+</script>
+</body>
+</html>

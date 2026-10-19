@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>바이브 코딩 입문 클래스 | Claude Code로 2시간 만에 첫 서비스 만들기</title>
+<meta name="description" content="코딩을 몰라도 괜찮아요. Claude Code와 대화하며 2시간 만에 나만의 웹페이지를 만들고 배포까지 해보는 오프라인 입문 클래스.">
+<meta property="og:title" content="바이브 코딩 입문 클래스 — Claude Code로 2시간 만에 첫 서비스 만들기">
+<meta property="og:description" content="코딩을 몰라도 괜찮아요. 말로 설명하면 AI가 코드를 씁니다. 오프라인 2시간 실습 클래스.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf8f5;
+    --surface: #ffffff;
+    --ink: #1c1917;
+    --muted: #6b645c;
+    --line: #e7e2db;
+    --accent: #d9622b;
+    --accent-ink: #ffffff;
+    --accent-soft: #fbe9df;
+    --term-bg: #1c1917;
+    --term-ink: #f2ede6;
+    --term-dim: #a8a097;
+    --term-green: #8fd19e;
+    --placeholder: #fff3c4;
+    --placeholder-ink: #7a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141210;
+      --surface: #1e1b18;
+      --ink: #f2ede6;
+      --muted: #a8a097;
+      --line: #34302b;
+      --accent: #ef7a43;
+      --accent-ink: #1c1917;
+      --accent-soft: #3a2519;
+      --term-bg: #0c0b0a;
+      --placeholder: #4a3c10;
+      --placeholder-ink: #ffe08a;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Noto Sans KR", system-ui, -apple-system, sans-serif;
+    line-height: 1.65;
+    word-break: keep-all;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: inherit; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 20px; }
+
+  /* 채워 넣어야 할 정보 표시 */
+  .tbd {
+    background: var(--placeholder);
+    color: var(--placeholder-ink);
+    border-radius: 4px;
+    padding: 0 6px;
+    font-weight: 700;
+  }
+
+  /* Header */
+  header.top {
+    position: sticky; top: 0; z-index: 10;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+  }
+  header.top .wrap { display: flex; align-items: center; justify-content: space-between; height: 60px; }
+  .logo { font-weight: 900; letter-spacing: -0.02em; text-decoration: none; }
+  .logo span { color: var(--accent); }
+
+  .btn {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--accent); color: var(--accent-ink);
+    font-weight: 700; text-decoration: none;
+    border: 0; border-radius: 999px;
+    padding: 14px 28px; font-size: 1.05rem;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease;
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .btn:hover { transform: translateY(-2px); }
+  .btn.sm { padding: 9px 18px; font-size: .92rem; box-shadow: none; }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1.5px solid var(--line); box-shadow: none; }
+
+  /* Hero */
+  .hero { padding: 72px 0 56px; }
+  .hero .wrap { display: grid; grid-template-columns: 1.1fr 1fr; gap: 48px; align-items: center; }
+  .eyebrow {
+    display: inline-block; background: var(--accent-soft); color: var(--accent);
+    font-weight: 700; font-size: .88rem; padding: 6px 14px; border-radius: 999px; margin-bottom: 20px;
+  }
+  h1 { font-size: clamp(2.1rem, 5vw, 3.4rem); line-height: 1.2; letter-spacing: -0.03em; margin: 0 0 20px; font-weight: 900; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 28px; }
+  .hero-meta { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 28px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .95rem; }
+  .hero-meta b { color: var(--ink); }
+  .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
+
+  .terminal {
+    background: var(--term-bg); color: var(--term-ink);
+    border-radius: 14px; padding: 18px 20px 22px;
+    font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .88rem; line-height: 1.75;
+    box-shadow: 0 20px 50px rgba(0,0,0,.18);
+    min-height: 290px;
+  }
+  .terminal .dots { display: flex; gap: 7px; margin-bottom: 14px; }
+  .terminal .dots i { width: 11px; height: 11px; border-radius: 50%; background: #4a443e; display: block; }
+  .terminal .dots i:first-child { background: #ef6b5b; }
+  .terminal .dots i:nth-child(2) { background: #f4bf4f; }
+  .terminal .dots i:nth-child(3) { background: #61c554; }
+  .terminal .p { color: var(--accent); }
+  .terminal .d { color: var(--term-dim); }
+  .terminal .g { color: var(--term-green); }
+  .terminal .line { white-space: pre-wrap; }
+  .cursor { display: inline-block; width: 8px; height: 1.1em; background: var(--term-ink); vertical-align: text-bottom; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Sections */
+  section { padding: 72px 0; }
+  section.alt { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  h2 { font-size: clamp(1.6rem, 3.5vw, 2.2rem); letter-spacing: -0.02em; margin: 0 0 12px; font-weight: 900; line-height: 1.3; }
+  .sub { color: var(--muted); margin: 0 0 40px; font-size: 1.05rem; }
+
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 26px;
+  }
+  section.alt .card { background: var(--bg); }
+  .card .ic { font-size: 1.8rem; margin-bottom: 10px; }
+  .card h3 { margin: 0 0 8px; font-size: 1.15rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .97rem; }
+
+  .checks { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 14px 28px; }
+  .checks li { padding-left: 32px; position: relative; font-size: 1.02rem; }
+  .checks li::before {
+    content: "✓"; position: absolute; left: 0; top: 1px;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    font-weight: 900; font-size: .8rem; display: grid; place-items: center;
+  }
+
+  /* Timeline */
+  .timeline { display: grid; gap: 0; border-left: 2px solid var(--line); margin-left: 8px; }
+  .step { position: relative; padding: 0 0 30px 32px; }
+  .step:last-child { padding-bottom: 0; }
+  .step::before {
+    content: ""; position: absolute; left: -9px; top: 6px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: var(--accent); border: 3px solid var(--surface);
+  }
+  .step .time { font-family: "JetBrains Mono", monospace; font-size: .85rem; color: var(--accent); font-weight: 500; }
+  .step h3 { margin: 2px 0 6px; font-size: 1.12rem; }
+  .step p { margin: 0; color: var(--muted); }
+
+  /* Info table */
+  .info { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: start; }
+  dl.facts { margin: 0; display: grid; grid-template-columns: 96px 1fr; border-top: 1px solid var(--line); }
+  dl.facts dt, dl.facts dd { padding: 14px 0; border-bottom: 1px solid var(--line); margin: 0; }
+  dl.facts dt { color: var(--muted); font-size: .95rem; }
+  dl.facts dd { font-weight: 500; }
+
+  .price-box {
+    background: var(--surface); border: 2px solid var(--accent); border-radius: 20px; padding: 32px; text-align: center;
+  }
+  .price-box .label { color: var(--muted); font-size: .95rem; }
+  .price-box .price { font-size: 2.4rem; font-weight: 900; letter-spacing: -0.02em; margin: 4px 0 6px; }
+  .price-box .seats { color: var(--accent); font-weight: 700; margin-bottom: 22px; }
+  .price-box .btn { width: 100%; }
+  .price-box small { display: block; margin-top: 14px; color: var(--muted); }
+
+  /* Instructor */
+  .instructor { display: grid; grid-template-columns: 140px 1fr; gap: 28px; align-items: center; }
+  .avatar {
+    width: 140px; height: 140px; border-radius: 50%;
+    background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; font-size: 3rem; font-weight: 900;
+  }
+  .instructor h3 { margin: 0 0 4px; font-size: 1.3rem; }
+  .instructor .role { color: var(--accent); font-weight: 700; margin-bottom: 10px; }
+  .instructor p { margin: 0; color: var(--muted); }
+
+  /* Reviews */
+  .review {
+    margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 26px;
+    display: flex; flex-direction: column; gap: 12px; position: relative;
+  }
+  .review .stars { color: var(--accent); letter-spacing: 2px; }
+  .review blockquote { margin: 0; font-size: 1rem; flex: 1; }
+  .review blockquote::before { content: "“"; color: var(--accent); font-size: 2rem; line-height: 0; vertical-align: -0.4em; margin-right: 2px; font-weight: 900; }
+  .review figcaption { color: var(--muted); font-size: .92rem; }
+  .review figcaption b { color: var(--ink); }
+  .sample { border-style: dashed; border-color: var(--placeholder-ink); }
+  .sample-tag {
+    align-self: flex-start; background: var(--placeholder); color: var(--placeholder-ink);
+    font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
+  }
+
+  /* Schedule */
+  .slots { display: grid; gap: 12px; }
+  .muted { color: var(--muted); margin: 0; }
+  .slot {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px;
+  }
+  .slot.off { opacity: .55; }
+  .slot-date { font-weight: 700; font-size: 1.05rem; }
+  .slot-place { color: var(--muted); font-size: .92rem; }
+  .slot-side { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
+  .seats-bar { display: flex; gap: 3px; }
+  .seats-bar i { width: 8px; height: 18px; border-radius: 3px; background: var(--accent-soft); display: block; }
+  .seats-bar i.on { background: var(--accent); }
+  .slot-left { font-size: .9rem; font-weight: 700; color: var(--accent); min-width: 72px; text-align: right; }
+  .slot.off .slot-left { color: var(--muted); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+  #apply .info { grid-template-columns: 1.5fr 1fr; }
+  .slot-date { white-space: nowrap; }
+  .price-box .facts { text-align: left; margin: 0 0 16px; grid-template-columns: 72px 1fr; }
+
+  /* Dialog */
+  dialog {
+    width: min(460px, calc(100vw - 32px)); border: 0; border-radius: 20px; padding: 0;
+    background: var(--surface); color: var(--ink); box-shadow: 0 30px 80px rgba(0,0,0,.3);
+  }
+  dialog::backdrop { background: rgba(20,18,16,.55); }
+  dialog form { padding: 28px 24px 24px; position: relative; }
+  dialog h3 { margin: 0 0 4px; font-size: 1.3rem; }
+  .dlg-slot { margin: 0 0 20px; color: var(--accent); font-weight: 700; font-size: .95rem; }
+  .dlg-close { position: absolute; top: 14px; right: 16px; background: none; border: 0; font-size: 1.6rem; color: var(--muted); cursor: pointer; line-height: 1; }
+  dialog label { display: block; font-weight: 700; font-size: .92rem; margin-bottom: 14px; }
+  dialog input, dialog textarea {
+    display: block; width: 100%; margin-top: 6px; padding: 12px 14px; font: inherit; font-weight: 400;
+    color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px;
+  }
+  dialog input:focus, dialog textarea:focus { outline: none; border-color: var(--accent); }
+  dialog input[readonly] { color: var(--muted); }
+  dialog .row { display: flex; gap: 8px; align-items: stretch; }
+  dialog .row input { flex: 1; min-width: 0; }
+  dialog .row .btn { margin-top: 6px; white-space: nowrap; }
+  .opt { color: var(--muted); font-weight: 400; }
+  .hint { display: block; margin-top: 6px; font-weight: 400; color: var(--muted); font-size: .85rem; }
+  .msg { min-height: 1.4em; margin: 0 0 12px; color: #d33; font-size: .92rem; }
+  .msg.ok { color: #2a9d55; }
+  #submitBtn { width: 100%; }
+  .done { text-align: center; padding: 10px 0 0; }
+  .done-ic { font-size: 2.6rem; }
+  .done p { color: var(--muted); margin: 6px 0 22px; }
+  .done .btn { width: 100%; }
+
+  /* FAQ */
+  details {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 14px;
+    padding: 0 22px; margin-bottom: 12px;
+  }
+  section.alt details { background: var(--bg); }
+  summary { cursor: pointer; padding: 18px 0; font-weight: 700; list-style: none; display: flex; justify-content: space-between; gap: 12px; }
+  summary::-webkit-details-marker { display: none; }
+  summary::after { content: "+"; color: var(--accent); font-size: 1.3rem; line-height: 1; }
+  details[open] summary::after { content: "−"; }
+  details p { margin: 0 0 18px; color: var(--muted); }
+
+  /* Final CTA */
+  .final { text-align: center; padding: 88px 0; }
+  .final h2 { margin-bottom: 14px; }
+  .final p { color: var(--muted); margin: 0 0 30px; }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 100px; color: var(--muted); font-size: .88rem; }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+
+  /* 모바일 하단 고정 신청 버튼 */
+  .mobile-cta {
+    display: none; position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(8px); border-top: 1px solid var(--line);
+  }
+  .mobile-cta .btn { width: 100%; }
+
+  @media (max-width: 820px) {
+    .hero { padding: 40px 0 32px; }
+    .hero .wrap, .info, #apply .info { grid-template-columns: 1fr; gap: 32px; }
+    .grid3 { grid-template-columns: 1fr; }
+    .checks { grid-template-columns: 1fr; }
+    .instructor { grid-template-columns: 1fr; text-align: center; justify-items: center; }
+    section { padding: 56px 0; }
+    .terminal { font-size: .8rem; min-height: 250px; }
+    header.top .btn { display: none; }
+    .mobile-cta { display: block; }
+  }
+  @media (max-width: 560px) {
+    .slot { flex-direction: column; align-items: stretch; }
+    .slot-side { justify-content: space-between; }
+    .slot-left { text-align: left; min-width: 0; flex: 1; }
+  }
+  @media (max-width: 400px) { .wrap { padding: 0 16px; } }
+  @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } .btn { transition: none; } }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <a href="#" class="logo">vibe<span>.</span>coding class</a>
+    <a href="#apply" class="btn sm js-apply">수강 신청</a>
+  </div>
+</header>
+
+<main>
+  <!-- HERO -->
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow">오프라인 · 2시간 · 입문</span>
+        <h1>코드를 몰라도<br><em>말로 만드는</em> 첫 서비스</h1>
+        <p class="lead">Claude Code와 대화하며 나만의 웹페이지를 만들고, 인터넷에 올려 링크로 공유하기까지. 2시간 동안 직접 손으로 해봅니다.</p>
+        <div class="cta-row">
+          <a href="#apply" class="btn js-apply">지금 신청하기 →</a>
+          <a href="#curriculum" class="btn ghost">커리큘럼 보기</a>
+        </div>
+        <ul class="hero-meta">
+          <li>📅 <b>매달 여러 회차</b> 중 선택</li>
+          <li>📍 <b><span class="tbd">[장소]</span></b></li>
+          <li>👥 <b>회차당 6명</b> 소수 정예</li>
+        </ul>
+      </div>
+      <div class="terminal" aria-label="Claude Code 사용 예시 화면">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div id="term"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- WHAT IS VIBE CODING -->
+  <section class="alt">
+    <div class="wrap">
+      <h2>바이브 코딩이 뭔가요?</h2>
+      <p class="sub">문법을 외우는 대신, 원하는 것을 말로 설명하면 AI가 코드를 씁니다. 나는 방향을 잡고 결과를 확인하는 사람이 됩니다.</p>
+      <div class="grid3">
+        <div class="card">
+          <div class="ic">💬</div>
+          <h3>말로 설명하기</h3>
+          <p>"예약 버튼이 있는 카페 소개 페이지 만들어줘"처럼 평소 쓰는 말로 시작합니다.</p>
+        </div>
+        <div class="card">
+          <div class="ic">⚡</div>
+          <h3>AI가 바로 만들기</h3>
+          <p>Claude Code가 파일을 만들고 코드를 작성하고, 실행까지 해서 결과를 보여줍니다.</p>
+        </div>
+        <div class="card">
+          <div class="ic">🔁</div>
+          <h3>보고 고치기</h3>
+          <p>"버튼을 더 크게", "색을 따뜻하게". 마음에 들 때까지 대화로 다듬습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOR WHOM -->
+  <section>
+    <div class="wrap">
+      <h2>이런 분께 추천해요</h2>
+      <p class="sub">코딩 경험은 전혀 필요 없습니다. 노트북과 호기심만 챙겨 오세요.</p>
+      <ul class="checks">
+        <li>개발자에게 맡기기 전에 아이디어를 직접 만들어 보고 싶은 기획자·창업자</li>
+        <li>업무 자동화나 간단한 도구가 필요한 직장인</li>
+        <li>내 가게·브랜드 홈페이지를 직접 만들고 싶은 사장님</li>
+        <li>AI 코딩 도구가 궁금했지만 혼자 시작하기 막막했던 분</li>
+        <li>코딩 공부를 시도했다가 문법에서 포기한 경험이 있는 분</li>
+        <li>요즘 말하는 '바이브 코딩'을 직접 체험해 보고 싶은 분</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- CURRICULUM -->
+  <section class="alt" id="curriculum">
+    <div class="wrap">
+      <h2>2시간 커리큘럼</h2>
+      <p class="sub">설명은 짧게, 실습은 길게. 끝날 때 내 손에는 실제로 접속되는 링크가 남습니다.</p>
+      <div class="timeline">
+        <div class="step">
+          <div class="time">00:00 – 00:15</div>
+          <h3>바이브 코딩과 Claude Code 소개</h3>
+          <p>AI가 코드를 쓰는 시대에 내가 해야 할 일은 무엇인지, 실제 시연으로 감 잡기.</p>
+        </div>
+        <div class="step">
+          <div class="time">00:15 – 00:35</div>
+          <h3>설치와 첫 대화</h3>
+          <p>Claude Code를 설치하고 터미널에서 첫 요청 보내기. 막히는 부분은 강사가 옆에서 같이 해결합니다.</p>
+        </div>
+        <div class="step">
+          <div class="time">00:35 – 01:20</div>
+          <h3>실습: 나만의 웹페이지 만들기</h3>
+          <p>자기소개, 가게 홍보, 이벤트 페이지 중 하나를 골라 대화만으로 완성합니다. 좋은 요청을 쓰는 요령도 함께.</p>
+        </div>
+        <div class="step">
+          <div class="time">01:20 – 01:45</div>
+          <h3>깃허브에 올리고 무료로 배포하기</h3>
+          <p>만든 페이지를 인터넷에 공개해 친구에게 링크로 보내 봅니다.</p>
+        </div>
+        <div class="step">
+          <div class="time">01:45 – 02:00</div>
+          <h3>다음 단계와 Q&amp;A</h3>
+          <p>혼자서 계속 만들어 가는 방법, 자주 하는 실수, 비용 관리 팁.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- INSTRUCTOR -->
+  <section>
+    <div class="wrap">
+      <h2>강사 소개</h2>
+      <p class="sub">직접 만들고 배포해 본 경험을 바탕으로 입문자 눈높이에 맞춰 안내합니다.</p>
+      <div class="instructor">
+        <div class="avatar" aria-hidden="true">🧑‍💻</div>
+        <div>
+          <h3><span class="tbd">[강사 이름]</span></h3>
+          <div class="role"><span class="tbd">[직함 / 한 줄 소개]</span></div>
+          <p><span class="tbd">[경력과 대표 작업 2~3줄. 예: Claude Code로 만든 서비스, 강의 경력 등]</span></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- REVIEWS: 아래 3개는 예시입니다. 실제 수강생 후기로 바꿔 넣은 뒤 class="sample" 표시를 지워 주세요. -->
+  <section class="alt" id="reviews">
+    <div class="wrap">
+      <h2>먼저 들은 분들의 이야기</h2>
+      <p class="sub">이전 기수 수강생들이 남겨 주신 후기입니다.</p>
+      <div class="grid3">
+        <figure class="review sample">
+          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
+          <div class="stars" aria-label="별점 5점">★★★★★</div>
+          <blockquote>코딩은 한 줄도 몰랐는데 수업 끝날 때 제 가게 소개 페이지 링크를 단톡방에 올렸어요. 말로 시키면 된다는 게 이렇게 쉬운 줄 몰랐습니다.</blockquote>
+          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 카페 사장님]</figcaption>
+        </figure>
+        <figure class="review sample">
+          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
+          <div class="stars" aria-label="별점 5점">★★★★★</div>
+          <blockquote>기획서만 쓰던 제가 프로토타입을 직접 만들어서 회의에 들고 갔어요. 2시간이 정말 짧게 느껴졌고, 집에 와서도 혼자 계속 만들고 있어요.</blockquote>
+          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 서비스 기획자]</figcaption>
+        </figure>
+        <figure class="review sample">
+          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
+          <div class="stars" aria-label="별점 5점">★★★★★</div>
+          <blockquote>설치에서 막힐까 걱정했는데 강사님이 옆에서 하나하나 봐 주셔서 편했어요. 소수 정예라 질문도 마음껏 할 수 있었습니다.</blockquote>
+          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 마케터]</figcaption>
+        </figure>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCHEDULE + APPLY -->
+  <section id="apply">
+    <div class="wrap">
+      <h2>일정 선택하고 신청하기</h2>
+      <p class="sub">회차마다 최대 6명까지만 받습니다. 원하는 일정을 고르고 휴대폰 인증 후 신청해 주세요.</p>
+      <div class="info">
+        <div>
+          <div id="slots" class="slots" aria-live="polite"><p class="muted">일정을 불러오는 중…</p></div>
+        </div>
+        <div>
+          <div class="price-box">
+            <div class="label">수강료</div>
+            <div class="price"><span class="tbd">[수강료]</span>원</div>
+            <div class="seats">회차당 최대 6명</div>
+            <dl class="facts">
+              <dt>장소</dt><dd><span class="tbd">[주소와 건물명, 호실]</span></dd>
+              <dt>대상</dt><dd>코딩 경험이 없는 입문자 누구나</dd>
+              <dt>준비물</dt><dd>노트북 (Mac 또는 Windows), 충전기</dd>
+            </dl>
+            <small>신청이 완료되면 문자로 안내드리고, 결제와 사전 준비 방법은 따로 연락드립니다.</small>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section class="alt">
+    <div class="wrap">
+      <h2>자주 묻는 질문</h2>
+      <p class="sub">더 궁금한 점은 <span class="tbd">[문의 연락처]</span>로 편하게 물어보세요.</p>
+      <details>
+        <summary>코딩을 정말 하나도 몰라도 되나요?</summary>
+        <p>네. 이 클래스는 코딩 경험이 전혀 없는 분을 기준으로 만들었습니다. 코드를 직접 쓰는 대신 원하는 것을 말로 설명하는 방법을 배웁니다.</p>
+      </details>
+      <details>
+        <summary>Claude 유료 구독이 필요한가요?</summary>
+        <p>Claude Code를 쓰려면 Claude 유료 플랜 또는 API 계정이 필요합니다. 신청하신 분께 수업 전 준비 방법을 따로 안내드립니다.</p>
+      </details>
+      <details>
+        <summary>노트북 사양이 낮아도 괜찮나요?</summary>
+        <p>괜찮습니다. 무거운 작업은 AI 쪽에서 처리하기 때문에 인터넷과 웹 브라우저가 잘 되는 노트북이면 충분합니다.</p>
+      </details>
+      <details>
+        <summary>수업이 끝나면 무엇을 가져가나요?</summary>
+        <p>직접 만든 웹페이지와 그 페이지에 접속할 수 있는 실제 링크, 그리고 혼자서도 계속 만들어 갈 수 있는 작업 흐름을 가져가십니다.</p>
+      </details>
+      <details>
+        <summary>환불 규정이 어떻게 되나요?</summary>
+        <p><span class="tbd">[환불 규정. 예: 수업 3일 전까지 전액 환불, 이후 환불 불가]</span></p>
+      </details>
+    </div>
+  </section>
+
+  <!-- FINAL CTA -->
+  <section class="final">
+    <div class="wrap">
+      <h2>2시간 뒤, 내가 만든 서비스의 링크를 공유해 보세요</h2>
+      <p>회차마다 자리는 6석뿐입니다.</p>
+      <a href="#apply" class="btn js-apply">수강 신청하기 →</a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 바이브 코딩 입문 클래스</span>
+    <span>문의 <span class="tbd">[이메일 / 연락처]</span></span>
+  </div>
+</footer>
+
+<div class="mobile-cta"><a href="#apply" class="btn js-apply">수강 신청하기 →</a></div>
+
+<dialog id="applyDialog" aria-labelledby="dlgTitle">
+  <form id="applyForm" novalidate>
+    <button type="button" class="dlg-close" aria-label="닫기" data-close>×</button>
+    <h3 id="dlgTitle">수강 신청</h3>
+    <p class="dlg-slot" id="dlgSlot"></p>
+
+    <div id="stepForm">
+      <label>이름<input name="name" autocomplete="name" maxlength="30" required></label>
+      <label>휴대폰 번호
+        <div class="row">
+          <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" required>
+          <button type="button" class="btn sm" id="sendCode">인증번호 받기</button>
+        </div>
+      </label>
+      <label id="codeRow" hidden>인증번호
+        <div class="row">
+          <input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="6자리">
+          <button type="button" class="btn sm" id="verifyCode">확인</button>
+        </div>
+        <span class="hint" id="codeHint"></span>
+      </label>
+      <label>남기실 말 <span class="opt">(선택)</span><textarea name="memo" rows="2" maxlength="300" placeholder="만들어 보고 싶은 것, 궁금한 점 등"></textarea></label>
+      <p class="msg" id="formMsg" role="alert"></p>
+      <button type="submit" class="btn" id="submitBtn" disabled>휴대폰 인증 후 신청할 수 있어요</button>
+    </div>
+
+    <div id="stepDone" hidden class="done">
+      <div class="done-ic">🎉</div>
+      <h3>신청이 완료됐어요</h3>
+      <p id="doneText"></p>
+      <button type="button" class="btn" data-close>확인</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  // ── 일정 목록과 신청 ──
+  const $ = (sel) => document.querySelector(sel);
+  const slotsEl = $("#slots");
+  const dlg = $("#applyDialog");
+  const form = $("#applyForm");
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  let current = null, token = null, timer = null;
+
+  function slotLabel(s) {
+    const [, m, d] = s.date.split("-");
+    const day = days[new Date(s.date + "T12:00:00Z").getUTCDay()];
+    return `${Number(m)}월 ${Number(d)}일 (${day}) ${s.start} – ${s.end}`;
+  }
+
+  async function loadSlots() {
+    try {
+      const res = await fetch("/api/slots");
+      const { slots } = await res.json();
+      if (!slots.length) { slotsEl.innerHTML = '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>'; return; }
+      slotsEl.innerHTML = "";
+      for (const s of slots) {
+        const full = s.remaining === 0, off = full || s.closed;
+        const el = document.createElement("div");
+        el.className = "slot" + (off ? " off" : "");
+        el.innerHTML = `
+          <div class="slot-info">
+            <div class="slot-date"></div>
+            <div class="slot-place"></div>
+          </div>
+          <div class="slot-side">
+            <div class="seats-bar" aria-hidden="true">${"<i></i>".repeat(s.capacity)}</div>
+            <div class="slot-left"></div>
+            <button class="btn sm" type="button"></button>
+          </div>`;
+        el.querySelector(".slot-date").textContent = slotLabel(s);
+        el.querySelector(".slot-place").textContent = s.place;
+        [...el.querySelectorAll(".seats-bar i")].forEach((i, idx) => { if (idx < s.capacity - s.remaining) i.className = "on"; });
+        el.querySelector(".slot-left").textContent = s.closed ? "종료" : full ? "마감" : `${s.remaining}자리 남음`;
+        const b = el.querySelector("button");
+        b.textContent = s.closed ? "종료" : full ? "마감" : "신청";
+        b.disabled = off;
+        b.addEventListener("click", () => openDialog(s));
+        slotsEl.appendChild(el);
+      }
+    } catch {
+      slotsEl.innerHTML = '<p class="muted">일정을 불러오지 못했어요. 새로고침해 주세요.</p>';
+    }
+  }
+
+  function setMsg(text, ok) { const m = $("#formMsg"); m.textContent = text || ""; m.className = "msg" + (ok ? " ok" : ""); }
+
+  function openDialog(s) {
+    current = s; token = null;
+    form.reset();
+    $("#dlgSlot").textContent = `${slotLabel(s)} · ${s.place} · ${s.remaining}자리 남음`;
+    $("#stepForm").hidden = false; $("#stepDone").hidden = true;
+    $("#codeRow").hidden = true; $("#codeHint").textContent = "";
+    form.phone.readOnly = false;
+    $("#sendCode").disabled = false; $("#sendCode").textContent = "인증번호 받기";
+    $("#submitBtn").disabled = true; $("#submitBtn").textContent = "휴대폰 인증 후 신청할 수 있어요";
+    setMsg("");
+    dlg.showModal();
+    form.name.focus();
+  }
+
+  dlg.addEventListener("click", (e) => { if (e.target === dlg || e.target.hasAttribute("data-close")) dlg.close(); });
+  dlg.addEventListener("close", () => { clearInterval(timer); loadSlots(); });
+
+  async function post(url, body) {
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || "잠시 후 다시 시도해 주세요.");
+    return data;
+  }
+
+  $("#sendCode").addEventListener("click", async () => {
+    const btn = $("#sendCode");
+    setMsg(""); btn.disabled = true;
+    try {
+      const data = await post("/api/send-code", { phone: form.phone.value });
+      $("#codeRow").hidden = false;
+      form.code.focus();
+      let left = 180;
+      const tick = () => { $("#codeHint").textContent = `문자로 받은 6자리를 입력해 주세요. 남은 시간 ${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")}`; };
+      tick(); clearInterval(timer);
+      timer = setInterval(() => { left--; if (left <= 0) { clearInterval(timer); $("#codeHint").textContent = "시간이 지났어요. 인증번호를 다시 받아 주세요."; } else tick(); }, 1000);
+      if (data.devCode) setMsg(`개발 모드: 인증번호는 ${data.devCode}`, true);
+      btn.textContent = "다시 받기";
+      setTimeout(() => { if (!token) btn.disabled = false; }, 60000);
+    } catch (e) { setMsg(e.message); btn.disabled = false; }
+  });
+
+  $("#verifyCode").addEventListener("click", async () => {
+    setMsg("");
+    try {
+      const data = await post("/api/verify-code", { phone: form.phone.value, code: form.code.value });
+      token = data.token; clearInterval(timer);
+      form.phone.readOnly = true;
+      $("#codeRow").hidden = true; $("#sendCode").disabled = true; $("#sendCode").textContent = "인증 완료 ✓";
+      $("#submitBtn").disabled = false; $("#submitBtn").textContent = "신청 완료하기";
+      setMsg("휴대폰 인증이 완료됐어요.", true);
+    } catch (e) { setMsg(e.message); }
+  });
+  form.code.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#verifyCode").click(); } });
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!token) return;
+    if (!form.name.value.trim()) { setMsg("이름을 입력해 주세요."); form.name.focus(); return; }
+    const btn = $("#submitBtn"); btn.disabled = true; setMsg("");
+    try {
+      await post("/api/apply", { slotId: current.id, name: form.name.value, memo: form.memo.value, token });
+      $("#doneText").textContent = `${slotLabel(current)} 클래스에 자리를 잡아 두었어요. 안내 문자를 보내드릴게요.`;
+      $("#stepForm").hidden = true; $("#stepDone").hidden = false;
+    } catch (err) { setMsg(err.message); btn.disabled = false; }
+  });
+
+  loadSlots();
+
+  // 히어로 터미널 타이핑 연출
+  const script = [
+    ["p", "> "],
+    ["t", "우리 동네 빵집 소개 페이지 만들어줘. 메뉴랑 예약 버튼도 넣어줘"],
+    ["n"],
+    ["d", "● 페이지 구조를 잡는 중…"], ["n"],
+    ["g", "✓ index.html 생성"], ["n"],
+    ["g", "✓ 메뉴 섹션, 예약 버튼 추가"], ["n"],
+    ["g", "✓ 모바일 화면 대응"], ["n"],
+    ["n"],
+    ["p", "> "],
+    ["t", "색을 좀 더 따뜻하게, 버튼은 크게"],
+    ["n"],
+    ["g", "✓ 수정 완료. 브라우저에서 확인해 보세요!"], ["n"],
+    ["p", "> "]
+  ];
+  const term = document.getElementById("term");
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let line = document.createElement("div"); line.className = "line"; term.appendChild(line);
+  const cursor = document.createElement("span"); cursor.className = "cursor";
+
+  function add(cls, text) {
+    const s = document.createElement("span"); if (cls) s.className = cls; s.textContent = text; line.appendChild(s); line.appendChild(cursor); return s;
+  }
+  async function run() {
+    for (const [kind, text] of script) {
+      if (kind === "n") { line = document.createElement("div"); line.className = "line"; term.appendChild(line); line.appendChild(cursor); continue; }
+      if (kind === "t" && !reduce) {
+        const s = add("", "");
+        for (const ch of text) { s.textContent += ch; await new Promise(r => setTimeout(r, 45)); }
+        await new Promise(r => setTimeout(r, 350));
+      } else {
+        add(kind === "t" ? "" : kind, text);
+        if (!reduce) await new Promise(r => setTimeout(r, kind === "p" ? 150 : 420));
+      }
+    }
+  }
+  run();
+</script>
+</body>
+</html>
