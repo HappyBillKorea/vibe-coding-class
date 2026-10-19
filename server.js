@@ -112,6 +112,12 @@ function formatSlot(slot) {
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10kb" }));
+// 카카오톡·페이스북 등은 미리보기 이미지 주소를 절대 경로로 요구해서, 접속한 도메인을 붙여 내려줍니다.
+const indexHtml = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
+app.get(["/", "/index.html"], (req, res) => {
+  const origin = `${req.protocol}://${req.get("host")}`;
+  res.type("html").send(indexHtml.replaceAll('content="/og.png"', `content="${origin}/og.png"`));
+});
 app.use(express.static(path.join(__dirname, "public")));
 
 app.get("/api/slots", (req, res) => {
