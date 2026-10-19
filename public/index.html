@@ -207,16 +207,10 @@
     margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 26px;
     display: flex; flex-direction: column; gap: 12px; position: relative;
   }
-  .review .stars { color: var(--accent); letter-spacing: 2px; }
-  .review blockquote { margin: 0; font-size: 1rem; flex: 1; }
+  .review blockquote { margin: 0; font-size: 1.02rem; flex: 1; }
   .review blockquote::before { content: "“"; color: var(--accent); font-size: 2rem; line-height: 0; vertical-align: -0.4em; margin-right: 2px; font-weight: 900; }
   .review figcaption { color: var(--muted); font-size: .92rem; }
   .review figcaption b { color: var(--ink); }
-  .sample { border-style: dashed; border-color: var(--placeholder-ink); }
-  .sample-tag {
-    align-self: flex-start; background: var(--placeholder); color: var(--placeholder-ink);
-    font-size: .78rem; font-weight: 700; padding: 3px 10px; border-radius: 999px;
-  }
 
   /* Schedule */
   .slots { display: grid; gap: 12px; }
@@ -471,29 +465,35 @@
     </div>
   </section>
 
-  <!-- REVIEWS: 아래 3개는 예시입니다. 실제 수강생 후기로 바꿔 넣은 뒤 class="sample" 표시를 지워 주세요. -->
+  <!-- REVIEWS: Bill의 이전 AI·GPT 스터디 참가자 단톡방 후기 (이름은 가림) -->
   <section class="alt" id="reviews">
     <div class="wrap">
       <h2>먼저 들은 분들의 이야기</h2>
-      <p class="sub">이전 기수 수강생들이 남겨 주신 후기입니다.</p>
-      <div class="grid3">
-        <figure class="review sample">
-          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
-          <div class="stars" aria-label="별점 5점">★★★★★</div>
-          <blockquote>코딩은 한 줄도 몰랐는데 수업 끝날 때 제 가게 소개 페이지 링크를 단톡방에 올렸어요. 말로 시키면 된다는 게 이렇게 쉬운 줄 몰랐습니다.</blockquote>
-          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 카페 사장님]</figcaption>
+      <p class="sub">Bill이 진행한 AI·GPT 스터디 참가자들이 단톡방에 남겨 주신 말이에요. "또 열어 주세요"라는 요청이 이어져 이번 클래스를 열게 됐어요.</p>
+      <div class="grid3 reviews">
+        <figure class="review">
+          <blockquote>감사합니다~!!!! 또 한 번 신세계를 맛봤네요 ㅎㅎ 오늘 준비해 주시느라 넘 수고하셨습니다.</blockquote>
+          <figcaption><b>보*</b> · GPT 스터디 참가자</figcaption>
         </figure>
-        <figure class="review sample">
-          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
-          <div class="stars" aria-label="별점 5점">★★★★★</div>
-          <blockquote>기획서만 쓰던 제가 프로토타입을 직접 만들어서 회의에 들고 갔어요. 2시간이 정말 짧게 느껴졌고, 집에 와서도 혼자 계속 만들고 있어요.</blockquote>
-          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 서비스 기획자]</figcaption>
+        <figure class="review">
+          <blockquote>저도 오늘 너무 많은 것 배우고 가네요. 아낌없이 가르쳐 주셔서 감사합니다. 😊</blockquote>
+          <figcaption><b>노**</b> · AI 스터디 참가자</figcaption>
         </figure>
-        <figure class="review sample">
-          <span class="sample-tag">예시 후기 · 실제 후기로 교체</span>
-          <div class="stars" aria-label="별점 5점">★★★★★</div>
-          <blockquote>설치에서 막힐까 걱정했는데 강사님이 옆에서 하나하나 봐 주셔서 편했어요. 소수 정예라 질문도 마음껏 할 수 있었습니다.</blockquote>
-          <figcaption><b>[이름 또는 이니셜]</b> · [직업, 예: 마케터]</figcaption>
+        <figure class="review">
+          <blockquote>오늘 너무 감사드려요. 큰 도움 되었습니다!! 다음 모임 때 뵙겠습니다 ^^</blockquote>
+          <figcaption><b>권**</b> · AI 스터디 참가자</figcaption>
+        </figure>
+        <figure class="review">
+          <blockquote>저도 오늘 넘 유익하고 재밌었어요~~ 담에 또 이런 시간 가져용</blockquote>
+          <figcaption><b>박**</b> · 서초 · 꽃집 운영</figcaption>
+        </figure>
+        <figure class="review">
+          <blockquote>좋은 수업 잘 들었습니다 😭😭</blockquote>
+          <figcaption><b>안**</b> · 서초 · 의료업</figcaption>
+        </figure>
+        <figure class="review">
+          <blockquote>또 열어주세요 ㅎ.ㅎ</blockquote>
+          <figcaption><b>혜*</b> · GPT 스터디 참가자</figcaption>
         </figure>
       </div>
     </div>
