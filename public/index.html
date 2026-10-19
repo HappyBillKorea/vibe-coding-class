@@ -184,6 +184,7 @@
     width: 140px; height: 140px; border-radius: 50%;
     background: var(--accent-soft); color: var(--accent);
     display: grid; place-items: center; font-size: 3rem; font-weight: 900;
+    object-fit: cover;
   }
   .instructor h3 { margin: 0 0 4px; font-size: 1.3rem; }
   .instructor .role { color: var(--accent); font-weight: 700; margin-bottom: 10px; }
@@ -433,7 +434,7 @@
       <h2>강사 소개</h2>
       <p class="sub">개발자가 아닌 기획자가 Claude Code로 직접 서비스를 만들어 운영하고 있습니다. 같은 출발선에서 시작하는 분들의 막히는 지점을 누구보다 잘 압니다.</p>
       <div class="instructor">
-        <div class="avatar" aria-hidden="true">B</div>
+        <img class="avatar" src="bill.jpg" alt="강사 Bill" width="140" height="140" loading="lazy">
         <div>
           <h3>Bill</h3>
           <div class="role">IT 회사 15년 차 서비스 기획자 (현직)</div>
