@@ -216,6 +216,40 @@ app.get(["/", "/index.html"], (req, res) => {
 });
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })); // /info → info.html
 
+// 수강 안내 페이지의 장소 미리보기: 네이버 지도 공유 링크의 og 태그(제목·이미지)를 읽어 하루 동안 캐시합니다.
+const PLACE_URL = process.env.PLACE_URL || "https://naver.me/Fk76MHgd";
+let placeCache = { at: 0, data: null };
+function metaContent(html, prop) {
+  const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*>`, "i");
+  const tag = (html.match(re) || [])[0];
+  const m = tag && tag.match(/content=["']([^"']*)["']/i);
+  return m ? m[1].replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim() : "";
+}
+app.get("/api/place-preview", async (req, res) => {
+  if (placeCache.data && Date.now() - placeCache.at < 24 * 3600 * 1000) return res.json(placeCache.data);
+  try {
+    const r = await fetch(PLACE_URL, {
+      redirect: "follow",
+      headers: { "User-Agent": "facebookexternalhit/1.1", "Accept-Language": "ko-KR,ko;q=0.9" },
+      signal: AbortSignal.timeout(6000),
+    });
+    const html = (await r.text()).slice(0, 300000);
+    let image = metaContent(html, "og:image");
+    if (image.startsWith("//")) image = "https:" + image;
+    const data = {
+      url: PLACE_URL,
+      title: metaContent(html, "og:title"),
+      description: metaContent(html, "og:description"),
+      image: /^https:\/\//.test(image) ? image : "",
+    };
+    placeCache = { at: Date.now(), data };
+    res.json(data);
+  } catch (e) {
+    console.error("place preview error", e.message);
+    res.json({ url: PLACE_URL, title: "", description: "", image: "" });
+  }
+});
+
 app.get("/api/slots", (req, res) => {
   const counts = Object.fromEntries(q.countBySlot.all().map((r) => [r.slot_id, r.n]));
   const now = Date.now();
