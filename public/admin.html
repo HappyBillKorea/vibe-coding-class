@@ -85,6 +85,9 @@
   .form-grid input { width: 100%; }
   .switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: .9rem; }
   .switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+  .add-grid { grid-template-columns: 1.6fr 1fr 1.2fr 1.4fr auto; }
+  .add-grid select { width: 100%; }
+  @media (max-width: 760px) { .add-grid { grid-template-columns: 1fr 1fr; } }
   .group h2 span { color: var(--accent); }
 
   @media (max-width: 760px) {
@@ -173,9 +176,21 @@
     <section data-view="signups" hidden>
       <div class="row" style="justify-content:space-between;margin-bottom:12px">
         <span class="muted" id="signupSummary"></span>
-        <button class="btn ghost sm" id="csv">엑셀(CSV) 내려받기</button>
+        <div class="row"><button class="btn ghost sm" id="csv">엑셀(CSV) 내려받기</button><button class="btn ghost sm" id="backup">전체 백업(JSON)</button></div>
+      </div>
+      <div class="card">
+        <h2>신청자 직접 추가</h2>
+        <form id="addForm" class="form-grid add-grid">
+          <label>일정<select name="slotId" id="addSlot" required></select></label>
+          <label>이름<input name="name" maxlength="30" required></label>
+          <label>전화번호<input name="phone" type="tel" placeholder="010-1234-5678" required></label>
+          <label>남긴 말<input name="memo" maxlength="300"></label>
+          <div class="row"><button class="btn">추가</button></div>
+        </form>
+        <p class="err" id="addErr" style="margin:8px 0 0;min-height:0"></p>
       </div>
       <div id="signupList"></div>
+      <p class="muted" id="storageInfo" style="font-size:.82rem;margin-top:18px"></p>
     </section>
   </div>
 </main>
@@ -203,7 +218,11 @@
   }
   async function enter() {
     await loadStats();
-    api("/api/admin/storage").then((d) => { $("#storageWarn").hidden = d.persistent; }).catch(() => {});
+    api("/api/admin/storage").then((d) => {
+      $("#storageWarn").hidden = d.persistent;
+      $("#storageInfo").textContent = `데이터 저장 위치: ${d.dataDir}` + (d.volume ? ` · 볼륨 ${d.volume}에 저장 중` : " · 볼륨 없음") +
+        (d.ignoredDataDir ? ` · Railway의 DATA_DIR(${d.ignoredDataDir})은 볼륨 밖이라 무시했어요. 지워 주세요.` : "");
+    }).catch(() => {});
     try { sessionStorage.setItem("adminKey", key); } catch {}
     $("#loginView").hidden = true; $("#app").hidden = false;
   }
@@ -316,6 +335,9 @@
     signupData = await api("/api/admin/signups");
     const { slots, signups } = signupData;
     $("#signupSummary").textContent = `전체 신청 ${signups.length}명`;
+    const sel = $("#addSlot"), keep = sel.value;
+    sel.innerHTML = slots.map((s) => `<option value="${esc(s.id)}">${esc(s.label)} (${s.taken}/${s.capacity})</option>`).join("");
+    if (keep) sel.value = keep;
     $("#signupList").innerHTML = slots.length ? slots.map((s) => {
       const rows = signups.filter((x) => x.slot_id === s.id);
       return `<div class="card group"><div class="row" style="justify-content:space-between"><h2>${esc(s.label)} · ${esc(s.place)} <span>${rows.length}/${s.capacity}명</span>${s.open ? "" : " <span class='pill off'>숨김</span>"}</h2>` +
@@ -339,6 +361,19 @@
     if (!id || !confirm("이 신청을 취소할까요? 자리가 다시 열려요.")) return;
     await api("/api/admin/signups/" + id, { method: "DELETE" });
     loadSignups();
+  });
+  $("#addForm").addEventListener("submit", async (e) => {
+    e.preventDefault(); $("#addErr").textContent = "";
+    try {
+      await api("/api/admin/signups", { method: "POST", body: JSON.stringify(Object.fromEntries(new FormData(e.target))) });
+      const slot = e.target.slotId.value; e.target.reset(); await loadSignups(); $("#addSlot").value = slot;
+    } catch (err) { $("#addErr").textContent = err.message; }
+  });
+  $("#backup").addEventListener("click", async () => {
+    const res = await fetch("/api/admin/backup", { headers: { "x-admin-key": key } });
+    if (!res.ok) return alert("백업을 내려받지 못했어요.");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(await res.blob()); a.download = `vibe-class-backup-${new Date().toISOString().slice(0, 10)}.json`; a.click();
   });
   $("#csv").addEventListener("click", () => {
     if (!signupData) return;

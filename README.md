@@ -22,7 +22,7 @@ Claude Code로 배우는 바이브 코딩 입문 오프라인 클래스(2시간)
 | `GOOGLE_SITE_VERIFICATION` | (선택) 구글 서치 콘솔 HTML 태그의 content 값 |
 | `NAVER_SITE_VERIFICATION` | (선택) 네이버 서치어드바이저 HTML 태그의 content 값 |
 | `ADMIN_KEY` | 관리자 페이지 비밀번호 (저장소에는 넣지 마세요) |
-| `DATA_DIR` | (선택) 데이터 저장 경로. Railway에 볼륨을 붙이면 자동으로 그 경로를 써서 비워 둬도 돼요 |
+| `DATA_DIR` | 넣지 마세요. Railway 볼륨이 있으면 자동으로 볼륨에 저장하고, 볼륨 밖을 가리키는 값은 무시해요 |
 
 **Railway 서비스에 볼륨(서비스 카드 우클릭 → Attach Volume, 마운트 경로 `/data`)을 꼭 붙이세요.** 볼륨이 없으면 재배포할 때마다 일정·신청자·방문 통계가 사라지고, 관리자 화면 위에 경고가 뜹니다.
 

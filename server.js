@@ -7,11 +7,17 @@ const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
-// Railway에 볼륨을 붙이면 RAILWAY_VOLUME_MOUNT_PATH가 자동으로 생겨서, 따로 DATA_DIR을 안 넣어도 그 경로에 저장합니다.
-const DATA_DIR = process.env.DATA_DIR || process.env.RAILWAY_VOLUME_MOUNT_PATH || path.join(__dirname, "data");
+// 데이터 저장 위치. Railway에 볼륨을 붙이면 RAILWAY_VOLUME_MOUNT_PATH가 자동으로 생기고, 그 안에 저장해야 재배포 후에도 남습니다.
+// DATA_DIR이 볼륨 밖을 가리키면(예: 볼륨은 /app/data인데 DATA_DIR=/data) 재배포 때 지워지므로, 그럴 땐 DATA_DIR을 무시하고 볼륨을 씁니다.
+const VOLUME_PATH = process.env.RAILWAY_VOLUME_MOUNT_PATH ? path.resolve(process.env.RAILWAY_VOLUME_MOUNT_PATH) : "";
+const isInside = (dir, root) => dir === root || dir.startsWith(root + path.sep);
+const requestedDir = process.env.DATA_DIR ? path.resolve(__dirname, process.env.DATA_DIR) : "";
+const DATA_DIR = VOLUME_PATH
+  ? (requestedDir && isInside(requestedDir, VOLUME_PATH) ? requestedDir : VOLUME_PATH)
+  : (requestedDir || path.join(__dirname, "data"));
+const IGNORED_DATA_DIR = Boolean(VOLUME_PATH && requestedDir && !isInside(requestedDir, VOLUME_PATH));
 // Railway에서 볼륨 없이 돌고 있으면 재배포 때 데이터가 지워집니다. 관리자 화면에 경고를 띄웁니다.
-const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) &&
-  !process.env.RAILWAY_VOLUME_MOUNT_PATH;
+const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) && !VOLUME_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
 // 검색엔진용 대표 주소와 사이트 소유 확인 값 (구글 서치 콘솔, 네이버 서치어드바이저에서 받은 content 값)
 const SITE_URL = (process.env.SITE_URL || "https://aieo.kr").replace(/\/$/, "");
@@ -579,18 +585,40 @@ app.get("/api/admin/signups", requireAdmin, (req, res) => {
   res.json({ slots: slotsWithCounts(), signups: q.listSignups.all() });
 });
 
+// 관리자가 신청자를 직접 추가 (전화·문자로 받은 신청이나 복구용). 정원 검사는 그대로 합니다.
+app.post("/api/admin/signups", requireAdmin, (req, res) => {
+  const slot = q.getSlot.get(String(req.body.slotId || ""));
+  if (!slot) return res.status(400).json({ error: "일정을 선택해 주세요." });
+  const name = String(req.body.name || "").trim().slice(0, 30);
+  const phone = normalizePhone(req.body.phone);
+  const memo = String(req.body.memo || "").trim().slice(0, 300);
+  if (!name) return res.status(400).json({ error: "이름을 입력해 주세요." });
+  if (!phone) return res.status(400).json({ error: "휴대폰 번호를 확인해 주세요." });
+  const result = applyTx(slot, name, phone, memo);
+  if (result === "duplicate") return res.status(409).json({ error: "이 번호는 이미 이 일정에 신청돼 있어요." });
+  if (result === "full") return res.status(409).json({ error: "정원이 찼어요. 정원을 늘린 뒤 추가해 주세요." });
+  res.json({ success: true });
+});
+
+// 일정과 신청자 전체를 JSON으로 내려받기 (백업용)
+app.get("/api/admin/backup", requireAdmin, (req, res) => {
+  res.set("Content-Disposition", `attachment; filename="vibe-class-backup-${kstDay(Date.now())}.json"`);
+  res.json({ exportedAt: new Date().toISOString(), slots: q.allSlots.all(), signups: q.listSignups.all() });
+});
+
 app.delete("/api/admin/signups/:id", requireAdmin, (req, res) => {
   q.deleteSignup.run(Number(req.params.id));
   res.json({ success: true });
 });
 
 app.get("/api/admin/storage", requireAdmin, (req, res) => {
-  res.json({ dataDir: DATA_DIR, persistent: !DATA_NOT_PERSISTENT });
+  res.json({ dataDir: DATA_DIR, volume: VOLUME_PATH, ignoredDataDir: IGNORED_DATA_DIR ? requestedDir : "", persistent: !DATA_NOT_PERSISTENT });
 });
 
 app.listen(PORT, () => {
   console.log(`서버 실행 중: http://localhost:${PORT}`);
-  console.log(`데이터 저장 위치: ${DATA_DIR}`);
+  console.log(`데이터 저장 위치: ${DATA_DIR}` + (VOLUME_PATH ? ` (볼륨: ${VOLUME_PATH})` : " (볼륨 없음)"));
+  if (IGNORED_DATA_DIR) console.warn(`⚠️ DATA_DIR(${requestedDir})이 볼륨 밖이라 무시하고 볼륨에 저장합니다. Railway Variables에서 DATA_DIR을 지워 주세요.`);
   if (DATA_NOT_PERSISTENT) console.warn("⚠️ Railway 볼륨이 없어 재배포하면 일정·신청·통계 데이터가 지워집니다.");
   if (!smsConfigured()) console.log("솔라피 키가 없어 개발 모드로 인증번호를 콘솔에 출력합니다.");
 });
