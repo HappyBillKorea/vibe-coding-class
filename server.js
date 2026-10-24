@@ -257,13 +257,13 @@ function courseJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "Course",
-    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 만에 첫 서비스 만들기",
-    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 입문 강의.",
+    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 3시간 만에 첫 서비스 만들기",
+    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 3시간 입문 강의.",
     inLanguage: "ko",
     url: SITE_URL + "/",
     image: SITE_URL + "/og.png",
     provider: { "@type": "Person", name: "Bill", jobTitle: "IT 회사 15년 차 서비스 기획자", email: "bill@neonex.team" },
-    offers: { "@type": "Offer", category: "Paid", price: 20000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
+    offers: { "@type": "Offer", category: "Paid", price: 30000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
     hasCourseInstance: openUpcomingSlots().map((s) => ({
       "@type": "CourseInstance",
       courseMode: "Onsite",
