@@ -257,8 +257,8 @@ function courseJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "Course",
-    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 3시간 만에 첫 서비스 만들기",
-    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 3시간 입문 강의.",
+    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 30분 만에 첫 서비스 만들기",
+    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 30분 입문 강의.",
     inLanguage: "ko",
     url: SITE_URL + "/",
     image: SITE_URL + "/og.png",
