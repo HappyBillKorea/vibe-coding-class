@@ -317,7 +317,11 @@
       form.scrollIntoView({ behavior: "smooth", block: "center" });
     }
     if (e.target.dataset.del) {
-      if (!confirm("이 일정을 삭제할까요?")) return;
+      const s = slots.find((x) => x.id === e.target.dataset.del);
+      const msg = s.past && s.taken
+        ? `지난 일정을 삭제할까요?\n신청자 ${s.taken}명의 기록도 함께 지워져요. 필요하면 먼저 신청자 탭에서 백업해 주세요.`
+        : "이 일정을 삭제할까요?";
+      if (!confirm(msg)) return;
       try { await api("/api/admin/slots/" + encodeURIComponent(e.target.dataset.del), { method: "DELETE" }); await loadSlots(); }
       catch (err) { alert(err.message); }
     }

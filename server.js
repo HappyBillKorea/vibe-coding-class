@@ -563,11 +563,19 @@ app.put("/api/admin/slots/:id", requireAdmin, (req, res) => {
   res.json({ success: true });
 });
 
+// 다가올 일정은 신청자가 있으면 지울 수 없고, 이미 지난 일정은 신청자 기록과 함께 지웁니다.
+const deleteSlotWithSignups = db.transaction((id) => {
+  db.prepare("DELETE FROM signups WHERE slot_id = ?").run(id);
+  q.deleteSlot.run(id);
+});
 app.delete("/api/admin/slots/:id", requireAdmin, (req, res) => {
-  const taken = q.countSlot.get(req.params.id).n;
-  if (taken > 0) return res.status(400).json({ error: `신청자 ${taken}명이 있어 삭제할 수 없어요. 신청 받기를 끄거나 신청자를 먼저 취소해 주세요.` });
-  q.deleteSlot.run(req.params.id);
-  res.json({ success: true });
+  const slot = q.getSlot.get(req.params.id);
+  if (!slot) return res.status(404).json({ error: "없는 일정이에요." });
+  const taken = q.countSlot.get(slot.id).n;
+  const past = startsAt(slot) <= Date.now();
+  if (taken > 0 && !past) return res.status(400).json({ error: `신청자 ${taken}명이 있어 삭제할 수 없어요. 신청 받기를 끄거나 신청자를 먼저 취소해 주세요.` });
+  deleteSlotWithSignups(slot.id);
+  res.json({ success: true, removedSignups: taken });
 });
 
 // 이미 신청한 사람들에게 수강 안내 링크를 다시 보냅니다.
