@@ -211,6 +211,11 @@
   .work-url { margin-top: 14px; color: var(--accent); font-weight: 700; font-size: .92rem; }
 
   /* Reviews */
+  .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 32px; }
+  .photos figure { margin: 0; }
+  .photos img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 16px; border: 1px solid var(--line); background: var(--line); }
+  .photos figcaption { color: var(--muted); font-size: .9rem; margin-top: 8px; }
+  @media (max-width: 640px) { .photos { grid-template-columns: 1fr; } }
   .review {
     margin: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 16px; padding: 26px;
     display: flex; flex-direction: column; gap: 12px; position: relative;
@@ -487,6 +492,16 @@
     <div class="wrap">
       <h2>먼저 들은 분들의 이야기</h2>
       <p class="sub">Bill이 진행한 AI·GPT 스터디 참가자들이 단톡방에 남겨 주신 말이에요. "또 열어 주세요"라는 요청이 이어져 이번 클래스를 열게 됐어요.</p>
+      <div class="photos">
+        <figure>
+          <img src="/class1.jpg" alt="강남 회의실에서 소수 인원이 노트북을 펴고 수업을 듣는 모습" width="1200" height="900" loading="lazy">
+          <figcaption>회의실 한 테이블에 둘러앉아 함께 실습해요.</figcaption>
+        </figure>
+        <figure>
+          <img src="/class2.jpg" alt="화면에 깃허브를 띄워 놓고 강사가 설명하는 모습" width="1200" height="900" loading="lazy">
+          <figcaption>큰 화면으로 같이 보면서 하나씩 따라 해요.</figcaption>
+        </figure>
+      </div>
       <div class="grid3 reviews">
         <figure class="review">
           <blockquote>감사합니다~!!!! 또 한 번 신세계를 맛봤네요 ㅎㅎ 오늘 준비해 주시느라 넘 수고하셨습니다.</blockquote>
