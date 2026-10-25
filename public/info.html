@@ -34,11 +34,10 @@
   .sub { color: var(--muted); font-size: .92rem; margin-top: 2px; }
   .btn { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 10px; background: var(--accent); color: var(--accent-ink); text-decoration: none; font-weight: 700; border-radius: 12px; padding: 12px 16px; }
   .place { display: block; margin-top: 10px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; text-decoration: none; color: inherit; background: var(--bg); }
-  .place img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--accent-soft); }
+  .place img { display: block; width: 100%; height: auto; background: var(--accent-soft); }
   .place-body { display: block; padding: 10px 12px; }
   .place-body b { display: block; font-size: .95rem; }
   .place-body span { display: block; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .map { display: block; width: 100%; margin-top: 10px; height: 280px; border: 1px solid var(--line); border-radius: 12px; background: var(--accent-soft); }
   [hidden] { display: none !important; }
   .bring { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 22px; }
   .bring h2 { font-size: 1rem; margin: 0 0 8px; }
@@ -67,11 +66,10 @@
       <div>
         <div class="label">장소</div>
         <div class="value">강남 · 건물 8층</div>
-        <a class="place" id="place" href="https://naver.me/Fk76MHgd" target="_blank" rel="noopener" hidden>
-          <img id="placeImg" alt="장소 미리보기">
-          <span class="place-body"><b id="placeTitle"></b><span id="placeDesc"></span></span>
+        <a class="place" href="https://naver.me/Fk76MHgd" target="_blank" rel="noopener">
+          <img src="/map.jpg" alt="랜드마크빌딩 위치 지도, 9호선 봉은사역 바로 옆" width="721" height="667">
+          <span class="place-body"><b>랜드마크빌딩 8층</b><span>9호선 봉은사역 바로 옆</span></span>
         </a>
-        <iframe class="map" id="map" title="강의 장소 지도" loading="lazy" referrerpolicy="no-referrer-when-downgrade" hidden></iframe>
         <a class="btn" href="https://naver.me/Fk76MHgd" target="_blank" rel="noopener">네이버 지도에서 위치 보기 ↗</a>
       </div>
     </div>
@@ -101,26 +99,5 @@
 
   <p class="foot">문의 <a href="mailto:bill@neonex.team">bill@neonex.team</a><br><a href="/">클래스 소개 페이지로 가기</a></p>
 </main>
-<script>
-  // 장소를 구글 지도로 보여줍니다(주변 지하철역까지 보이는 넓이). 위치를 모르면 네이버 지도 미리보기 이미지를 보여줍니다.
-  function showImage(d) {
-    if (!d.image) return;
-    const img = document.getElementById("placeImg");
-    img.onload = () => {
-      document.getElementById("placeTitle").textContent = d.title || "";
-      document.getElementById("placeDesc").textContent = d.description || "";
-      document.getElementById("place").hidden = false;
-    };
-    img.referrerPolicy = "no-referrer";
-    img.src = d.image;
-  }
-  fetch("/api/place-preview").then((r) => r.json()).then((d) => {
-    const q = d.lat && d.lng ? `${d.lat},${d.lng}` : "";
-    if (!q) return showImage(d);
-    const map = document.getElementById("map");
-    map.src = `https://maps.google.com/maps?q=${encodeURIComponent(q)}&z=16&hl=ko&output=embed`;
-    map.hidden = false;
-  }).catch(() => {});
-</script>
 </body>
 </html>
