@@ -270,7 +270,7 @@
     try {
       const d = await api("/api/admin/sms-balance");
       if (!d.configured) { $("#smsBal").textContent = "연결 안 됨"; $("#smsNote").textContent = "SOLAPI 키가 설정되지 않았어요."; return; }
-      $("#smsBal").textContent = `${Number(d.balance).toLocaleString()}원` + (d.point ? ` + ${Number(d.point).toLocaleString()}P` : "");
+      $("#smsBal").textContent = `${Math.floor(Number(d.balance)).toLocaleString()}원` + (d.point ? ` + ${Math.floor(Number(d.point)).toLocaleString()}P` : "");
       $("#smsNote").textContent = d.notifyTo ? `새 신청 알림 문자 ${d.notifyTo}개 번호로 발송 중` : "새 신청 알림 번호(ADMIN_PHONE) 미설정";
     } catch (e) { $("#smsBal").textContent = "-"; $("#smsNote").textContent = e.message; }
   }

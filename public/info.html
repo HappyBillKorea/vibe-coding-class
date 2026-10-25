@@ -9,6 +9,7 @@
 <meta property="og:description" content="일시, 장소, 주차 안내">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -38,6 +39,7 @@
   .place-body { display: block; padding: 10px 12px; }
   .place-body b { display: block; font-size: .95rem; }
   .place-body span { display: block; color: var(--muted); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .map { margin-top: 10px; height: 260px; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--accent-soft); z-index: 0; }
   [hidden] { display: none !important; }
   .bring { margin-top: 22px; background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 18px 22px; }
   .bring h2 { font-size: 1rem; margin: 0 0 8px; }
@@ -70,6 +72,7 @@
           <img id="placeImg" alt="장소 미리보기">
           <span class="place-body"><b id="placeTitle"></b><span id="placeDesc"></span></span>
         </a>
+        <div class="map" id="map" hidden></div>
         <a class="btn" href="https://naver.me/Fk76MHgd" target="_blank" rel="noopener">네이버 지도에서 위치 보기 ↗</a>
       </div>
     </div>
@@ -99,9 +102,10 @@
 
   <p class="foot">문의 <a href="mailto:bill@neonex.team">bill@neonex.team</a><br><a href="/">클래스 소개 페이지로 가기</a></p>
 </main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
-  // 네이버 지도 링크의 미리보기 이미지가 있으면 보여주고, 없으면 버튼만 둡니다.
-  fetch("/api/place-preview").then((r) => r.json()).then((d) => {
+  // 장소 좌표를 알면 근처 지하철역까지 보이는 넓은 지도를 그리고, 모르면 네이버 지도 미리보기 이미지를 보여줍니다.
+  function showImage(d) {
     if (!d.image) return;
     const img = document.getElementById("placeImg");
     img.onload = () => {
@@ -111,6 +115,20 @@
     };
     img.referrerPolicy = "no-referrer";
     img.src = d.image;
+  }
+  fetch("/api/place-preview").then((r) => r.json()).then((d) => {
+    if (d.lat && d.lng && window.L) {
+      const el = document.getElementById("map");
+      el.hidden = false;
+      const map = L.map(el, { scrollWheelZoom: false, dragging: !L.Browser.mobile, tap: false }).setView([d.lat, d.lng], 16);
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19, attribution: "&copy; OpenStreetMap",
+      }).addTo(map);
+      L.circleMarker([d.lat, d.lng], { radius: 9, color: "#fff", weight: 3, fillColor: "#d9622b", fillOpacity: 1 })
+        .addTo(map).bindTooltip(d.description || "강의 장소", { permanent: true, direction: "top", offset: [0, -10] });
+      return;
+    }
+    showImage(d);
   }).catch(() => {});
 </script>
 </body>

@@ -314,6 +314,18 @@ function zoomOutMap(image, steps) {
     return changed ? u.toString() : image;
   } catch { return image; }
 }
+// 미리보기 지도 주소나 페이지 안에서 장소 좌표(경도·위도)를 찾습니다. 찾으면 안내 페이지가 지하철역까지 보이는 넓은 지도를 직접 그립니다.
+function findCoords(...texts) {
+  if (process.env.PLACE_LAT && process.env.PLACE_LNG) return { lat: Number(process.env.PLACE_LAT), lng: Number(process.env.PLACE_LNG) };
+  for (const raw of texts) {
+    let t = String(raw || "");
+    for (let i = 0; i < 3; i++) { try { t = decodeURIComponent(t); } catch { break; } }
+    const m = t.match(/(12[4-9]\.\d{3,})[\s,:/]+(3[3-8]\.\d{3,})/) ||
+      t.match(/"x"\s*:\s*"?(12[4-9]\.\d{3,})"?\s*,\s*"y"\s*:\s*"?(3[3-8]\.\d{3,})/);
+    if (m) return { lng: Number(m[1]), lat: Number(m[2]) };
+  }
+  return null;
+}
 function metaContent(html, prop) {
   const re = new RegExp(`<meta[^>]+(?:property|name)=["']${prop}["'][^>]*>`, "i");
   const tag = (html.match(re) || [])[0];
@@ -331,18 +343,22 @@ app.get("/api/place-preview", async (req, res) => {
     const html = (await r.text()).slice(0, 300000);
     let image = metaContent(html, "og:image");
     if (image.startsWith("//")) image = "https:" + image;
+    const coords = findCoords(image, r.url, html);
     image = zoomOutMap(image, PLACE_ZOOM_OUT);
     const data = {
       url: PLACE_URL,
       title: metaContent(html, "og:title"),
       description: metaContent(html, "og:description"),
       image: /^https:\/\//.test(image) ? image : "",
+      lat: coords ? coords.lat : null,
+      lng: coords ? coords.lng : null,
     };
     placeCache = { at: Date.now(), data };
     res.json(data);
   } catch (e) {
     console.error("place preview error", e.message);
-    res.json({ url: PLACE_URL, title: "", description: "", image: "" });
+    const c = findCoords();
+    res.json({ url: PLACE_URL, title: "", description: "", image: "", lat: c ? c.lat : null, lng: c ? c.lng : null });
   }
 });
 
