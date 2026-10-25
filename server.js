@@ -78,7 +78,7 @@ db.exec(`
     start TEXT NOT NULL,
     end TEXT NOT NULL,
     place TEXT NOT NULL,
-    capacity INTEGER NOT NULL DEFAULT 6,
+    capacity INTEGER NOT NULL DEFAULT 5,
     open INTEGER NOT NULL DEFAULT 1
   );
   CREATE TABLE IF NOT EXISTS visits (
@@ -139,12 +139,18 @@ if (db.prepare("SELECT COUNT(*) AS n FROM slots").get().n === 0) {
   const seedPath = path.join(__dirname, "schedule.json");
   if (fs.existsSync(seedPath)) {
     for (const s of JSON.parse(fs.readFileSync(seedPath, "utf8"))) {
-      q.insertSlot.run({ capacity: 6, ...s, open: 1 });
+      q.insertSlot.run({ capacity: 5, ...s, open: 1 });
     }
   }
 }
 
-// 정원 확인과 저장을 한 트랜잭션으로 묶어 동시에 신청해도 6명을 넘지 않게 합니다.
+// 1회성 변경: 회차당 정원을 6명에서 5명으로 줄입니다. 이미 6명이 신청한 일정은 그대로 둡니다.
+if (db.pragma("user_version", { simple: true }) < 1) {
+  db.prepare("UPDATE slots SET capacity = 5 WHERE capacity = 6 AND (SELECT COUNT(*) FROM signups WHERE slot_id = slots.id) <= 5").run();
+  db.pragma("user_version = 1");
+}
+
+// 정원 확인과 저장을 한 트랜잭션으로 묶어 동시에 신청해도 정원을 넘지 않게 합니다.
 const applyTx = db.transaction((slot, name, phone, memo) => {
   if (q.findSignup.get(slot.id, phone)) return "duplicate";
   if (q.countSlot.get(slot.id).n >= slot.capacity) return "full";
