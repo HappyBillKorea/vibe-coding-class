@@ -478,7 +478,8 @@ app.post("/api/apply", async (req, res) => {
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
     const taken = q.countSlot.get(slot.id).n;
     const fmtPhone = t.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
-    const note = `[새신청] ${name.slice(0, 5)} ${fmtPhone} ${shortSlot(slot)} ${taken}/${slot.capacity}명`;
+    // 전화번호를 마지막 줄에 따로 두어, 문자앱이 번호와 날짜를 하나의 링크로 묶지 않게 합니다.
+    const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone}`;
     for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
