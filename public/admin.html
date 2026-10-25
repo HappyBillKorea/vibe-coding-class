@@ -197,7 +197,7 @@
 
 <script>
   let key = "";
-  try { key = sessionStorage.getItem("adminKey") || ""; } catch {}
+  try { key = localStorage.getItem("adminKey") || ""; } catch {}
   const $ = (s) => document.querySelector(s);
   const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const phone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
@@ -214,7 +214,7 @@
 
   function showLogin(msg) {
     $("#app").hidden = true; $("#loginView").hidden = false; $("#loginErr").textContent = msg || "";
-    try { sessionStorage.removeItem("adminKey"); } catch {}
+    try { localStorage.removeItem("adminKey"); } catch {}
   }
   async function enter() {
     await loadStats();
@@ -223,7 +223,7 @@
       $("#storageInfo").textContent = `데이터 저장 위치: ${d.dataDir}` + (d.volume ? ` · 볼륨 ${d.volume}에 저장 중` : " · 볼륨 없음") +
         (d.ignoredDataDir ? ` · Railway의 DATA_DIR(${d.ignoredDataDir})은 볼륨 밖이라 무시했어요. 지워 주세요.` : "");
     }).catch(() => {});
-    try { sessionStorage.setItem("adminKey", key); } catch {}
+    try { localStorage.setItem("adminKey", key); } catch {}
     $("#loginView").hidden = true; $("#app").hidden = false;
   }
   $("#loginForm").addEventListener("submit", (e) => { e.preventDefault(); key = $("#key").value; enter().catch(() => {}); });
