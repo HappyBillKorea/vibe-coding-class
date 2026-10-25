@@ -146,6 +146,10 @@
         <div id="sources"></div>
       </div>
       <div class="card">
+        <h2>날짜별 유입 경로 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
+        <div class="tbl"><table id="dailySources"></table></div>
+      </div>
+      <div class="card">
         <h2>들어온 주소</h2>
         <div class="tbl"><table id="refs"></table></div>
         <p class="muted" style="font-size:.85rem;margin:10px 0 0">카카오톡·인스타그램 앱 안에서 연 링크는 주소가 남지 않아서 위 유입 경로에만 집계돼요. 링크 끝에 <code>?utm_source=이름</code>을 붙여 공유하면 그 이름으로 따로 집계돼요.</p>
@@ -260,6 +264,20 @@
     $("#sources").innerHTML = d.sources.length ? d.sources.map((x) =>
       `<div class="src"><span class="name" title="${esc(x.name)}">${esc(x.name)}</span><div class="track"><div class="fill" style="width:${x.visitors / smax * 100}%"></div></div><span class="n">${x.visitors}</span></div>`).join("")
       : '<p class="muted">아직 방문 기록이 없어요.</p>';
+
+    // 날짜별 유입 경로: 많이 들어온 경로 6개를 열로, 나머지는 "그 외"로 묶습니다. 최근 날짜가 위로 옵니다.
+    const top = d.sources.slice(0, 6).map((x) => x.name);
+    const rest = d.sources.length > top.length;
+    const days = d.daily.filter((x) => x.visitors).reverse();
+    $("#dailySources").innerHTML = days.length
+      ? "<tr><th>날짜</th>" + top.map((n) => `<th style="text-align:right">${esc(n)}</th>`).join("") + (rest ? "<th style='text-align:right'>그 외</th>" : "") + "<th style='text-align:right'>합계</th><th style='text-align:right'>신청</th></tr>" +
+        days.map((x) => {
+          const other = Object.entries(x.sources).filter(([k]) => !top.includes(k)).reduce((n, [, v]) => n + v, 0);
+          const cell = (v) => `<td style="text-align:right">${v ? v : '<span class="muted">-</span>'}</td>`;
+          return `<tr><td style="white-space:nowrap">${x.date.slice(5).replace("-", "/")}</td>` + top.map((n) => cell(x.sources[n] || 0)).join("") + (rest ? cell(other) : "") +
+            `<td style="text-align:right"><b>${x.visitors}</b></td>` + cell(x.signups) + "</tr>";
+        }).join("")
+      : '<tr><td class="muted">아직 방문 기록이 없어요.</td></tr>';
 
     $("#refs").innerHTML = d.referrers.length
       ? "<tr><th>주소</th><th style='text-align:right'>방문</th></tr>" + d.referrers.map((r) => `<tr><td>${esc(r.url)}</td><td style="text-align:right">${r.n}</td></tr>`).join("")

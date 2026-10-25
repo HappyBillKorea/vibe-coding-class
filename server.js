@@ -530,13 +530,13 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
   const rows = q.visitsSince.all(since);
 
   const daily = {};
-  for (let i = 0; i < days; i++) daily[kstDay(since + i * 86400000 + 3600000)] = { views: 0, visitors: new Set(), signups: 0 };
+  for (let i = 0; i < days; i++) daily[kstDay(since + i * 86400000 + 3600000)] = { views: 0, visitors: new Set(), signups: 0, sources: {} };
   const sources = {};
   const referrers = {};
   const allVisitors = new Set();
   for (const r of rows) {
     const d = daily[kstDay(r.ts)];
-    if (d) { d.views++; d.visitors.add(r.vid); }
+    if (d) { d.views++; d.visitors.add(r.vid); (d.sources[r.source] ||= new Set()).add(r.vid); }
     allVisitors.add(r.vid);
     sources[r.source] = sources[r.source] || { views: 0, visitors: new Set() };
     sources[r.source].views++;
@@ -564,7 +564,10 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       visitors: allVisitors.size,
       signups: Object.values(daily).reduce((n, d) => n + d.signups, 0),
     },
-    daily: Object.entries(daily).map(([date, d]) => ({ date, views: d.views, visitors: d.visitors.size, signups: d.signups })),
+    daily: Object.entries(daily).map(([date, d]) => ({
+      date, views: d.views, visitors: d.visitors.size, signups: d.signups,
+      sources: Object.fromEntries(Object.entries(d.sources).map(([k, v]) => [k, v.size])),
+    })),
     sources: Object.entries(sources)
       .map(([name, v]) => ({ name, views: v.views, visitors: v.visitors.size }))
       .sort((a, b) => b.visitors - a.visitors),
