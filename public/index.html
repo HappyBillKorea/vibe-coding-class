@@ -257,6 +257,8 @@
   .dlg-slot { margin: 0 0 20px; color: var(--accent); font-weight: 700; font-size: .95rem; }
   .dlg-close { position: absolute; top: 14px; right: 16px; background: none; border: 0; font-size: 1.6rem; color: var(--muted); cursor: pointer; line-height: 1; }
   dialog label { display: block; font-weight: 700; font-size: .92rem; margin-bottom: 14px; }
+  dialog .row select { flex: none; width: auto; margin-top: 6px; padding: 0 8px; font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+  @media (max-width: 480px) { #phoneRow { flex-wrap: wrap; } #phoneRow .btn { flex-basis: 100%; margin-top: 0; } }
   dialog input, dialog textarea {
     display: block; width: 100%; margin-top: 6px; padding: 12px 14px; font: inherit; font-weight: 400;
     color: var(--ink); background: var(--bg); border: 1.5px solid var(--line); border-radius: 10px;
@@ -613,8 +615,22 @@
     <div id="stepForm">
       <label>이름<input name="name" autocomplete="name" maxlength="30" required></label>
       <label>휴대폰 번호
-        <div class="row">
-          <input name="phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="010-1234-5678" required>
+        <div class="row" id="phoneRow">
+          <select name="country" aria-label="국가">
+            <option value="82" selected>🇰🇷 +82</option>
+            <option value="81">🇯🇵 +81</option>
+            <option value="852">🇭🇰 +852</option>
+            <option value="886">🇹🇼 +886</option>
+            <option value="61">🇦🇺 +61</option>
+            <option value="64">🇳🇿 +64</option>
+            <option value="44">🇬🇧 +44</option>
+            <option value="49">🇩🇪 +49</option>
+            <option value="33">🇫🇷 +33</option>
+            <option value="63">🇵🇭 +63</option>
+            <option value="66">🇹🇭 +66</option>
+            <option value="91">🇮🇳 +91</option>
+          </select>
+          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="010-1234-5678" required>
           <button type="button" class="btn sm" id="sendCode">인증번호 받기</button>
         </div>
       </label>
@@ -697,7 +713,7 @@
     $("#dlgSlot").textContent = `${slotLabel(s)} · ${s.place} · ${s.remaining}자리 남음`;
     $("#stepForm").hidden = false; $("#stepDone").hidden = true;
     $("#codeRow").hidden = true; $("#codeHint").textContent = "";
-    form.phone.readOnly = false;
+    form.phone.readOnly = false; form.country.disabled = false; form.phone.placeholder = "010-1234-5678";
     $("#sendCode").disabled = false; $("#sendCode").textContent = "인증번호 받기";
     $("#submitBtn").disabled = true; $("#submitBtn").textContent = "휴대폰 인증 후 신청할 수 있어요";
     setMsg("");
@@ -719,7 +735,7 @@
     const btn = $("#sendCode");
     setMsg(""); btn.disabled = true;
     try {
-      const data = await post("/api/send-code", { phone: form.phone.value });
+      const data = await post("/api/send-code", { phone: form.phone.value, country: form.country.value });
       $("#codeRow").hidden = false;
       form.code.focus();
       let left = 180;
@@ -735,14 +751,15 @@
   $("#verifyCode").addEventListener("click", async () => {
     setMsg("");
     try {
-      const data = await post("/api/verify-code", { phone: form.phone.value, code: form.code.value });
+      const data = await post("/api/verify-code", { phone: form.phone.value, country: form.country.value, code: form.code.value });
       token = data.token; clearInterval(timer);
-      form.phone.readOnly = true;
+      form.phone.readOnly = true; form.country.disabled = true;
       $("#codeRow").hidden = true; $("#sendCode").disabled = true; $("#sendCode").textContent = "인증 완료 ✓";
       $("#submitBtn").disabled = false; $("#submitBtn").textContent = "신청 완료하기";
       setMsg("휴대폰 인증이 완료됐어요.", true);
     } catch (e) { setMsg(e.message); }
   });
+  form.country.addEventListener("change", () => { form.phone.placeholder = form.country.value === "82" ? "010-1234-5678" : "현지 휴대폰 번호"; });
   form.code.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); $("#verifyCode").click(); } });
 
   form.addEventListener("submit", async (e) => {

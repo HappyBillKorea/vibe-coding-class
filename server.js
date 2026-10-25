@@ -159,10 +159,26 @@ const applyTx = db.transaction((slot, name, phone, memo) => {
 });
 
 // ── 유틸 ─────────────────────────────────────────────
-function normalizePhone(input) {
-  const digits = String(input || "").replace(/\D/g, "");
-  return /^01[016789]\d{7,8}$/.test(digits) ? digits : null;
+// 해외 번호로 인증문자를 받을 수 있는 나라 (솔라피 해외 SMS 기준, 미국·캐나다·싱가포르·중국은 솔라피에서 발송이 막혀 있어 제외).
+// 해외 번호는 "+국가번호-번호" 형태로 저장합니다. 예: +81-9012345678
+const INTL_COUNTRIES = ["81", "852", "886", "61", "64", "44", "49", "33", "63", "66", "91"];
+function normalizePhone(input, country) {
+  const raw = String(input || "").trim();
+  let cc = String(country || "82").replace(/\D/g, "") || "82";
+  let digits = raw.replace(/\D/g, "");
+  if (raw.startsWith("+")) {
+    const found = ["82", ...INTL_COUNTRIES].find((c) => digits.startsWith(c));
+    if (!found) return null;
+    cc = found; digits = digits.slice(found.length);
+    if (cc === "82") digits = "0" + digits.replace(/^0+/, "");
+  }
+  if (cc === "82") return /^01[016789]\d{7,8}$/.test(digits) ? digits : null;
+  if (!INTL_COUNTRIES.includes(cc)) return null;
+  if (digits.startsWith(cc) && digits.length > cc.length + 6) digits = digits.slice(cc.length);
+  digits = digits.replace(/^0+/, "");
+  return /^\d{6,13}$/.test(digits) ? `+${cc}-${digits}` : null;
 }
+const fmtPhone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
 
 // 유입 경로: Referer 헤더, utm_source, 앱 내 브라우저(UA)로 판단합니다.
 const BOT_RE = /bot|crawl|spider|slurp|facebookexternalhit|kakaotalk-scrap|preview|headless|curl|wget/i;
@@ -391,7 +407,7 @@ app.get("/api/slots", (req, res) => {
 });
 
 app.post("/api/send-code", async (req, res) => {
-  const phone = normalizePhone(req.body.phone);
+  const phone = normalizePhone(req.body.phone, req.body.country);
   if (!phone) return res.status(400).json({ error: "휴대폰 번호를 정확히 입력해 주세요." });
 
   const now = Date.now();
@@ -427,7 +443,7 @@ app.post("/api/send-code", async (req, res) => {
 });
 
 app.post("/api/verify-code", (req, res) => {
-  const phone = normalizePhone(req.body.phone);
+  const phone = normalizePhone(req.body.phone, req.body.country);
   const code = String(req.body.code || "").trim();
   const row = phone && q.getCode.get(phone);
   if (!row) return res.status(400).json({ error: "인증번호를 먼저 요청해 주세요." });
@@ -477,9 +493,8 @@ app.post("/api/apply", async (req, res) => {
     sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
     const taken = q.countSlot.get(slot.id).n;
-    const fmtPhone = t.phone.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
     // 전화번호를 마지막 줄에 따로 두어, 문자앱이 번호와 날짜를 하나의 링크로 묶지 않게 합니다.
-    const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone}`;
+    const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone(t.phone)}`;
     for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
