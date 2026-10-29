@@ -34,6 +34,13 @@ npm start
 솔라피 키 없이 실행하면 문자 대신 화면과 콘솔에 인증번호가 표시되는 개발 모드로 동작합니다.
 
 ## 검색 최적화
-- `/robots.txt`, `/sitemap.xml` 은 서버가 자동으로 만들어요. 관리자·안내 페이지와 API는 검색에서 빠져요.
-- 첫 화면에 일정 목록과 강의 정보(Course), 자주 묻는 질문(FAQPage) 구조화 데이터를 서버에서 넣어 줘요.
-- 구글 서치 콘솔과 네이버 서치어드바이저에 `https://aieo.kr` 을 등록하고, 받은 확인 값을 위 환경 변수에 넣은 뒤 `https://aieo.kr/sitemap.xml` 을 제출하세요.
+- `/robots.txt`, `/sitemap.xml` 은 서버가 자동으로 만들어요. 관리자 페이지와 API는 검색에서 빠지고, 수강 안내(`/info`)는 `noindex` 로 빠져요.
+- 첫 화면에 일정 목록과 구조화 데이터(사이트 이름 WebSite, 운영 주체, 강의 Course, 회차별 EducationEvent, 자주 묻는 질문 FAQPage)를 서버에서 넣어 줘요.
+- Railway 기본 주소와 `www.aieo.kr` 로 들어오면 `https://aieo.kr` 로 넘겨서 주소가 하나로 모여요.
+- 배포할 때와 관리자에서 일정을 바꿀 때 IndexNow로 네이버·빙에 바로 알려요. 키 파일은 서버가 알아서 만들어요.
+- 검색 결과에 보이는 파비콘(`favicon.ico`, `icon-192.png`)이 들어 있어요.
+
+### 직접 해야 하는 것 (한 번만)
+1. 구글 서치 콘솔(https://search.google.com/search-console)에서 URL 접두어 `https://aieo.kr/` 로 속성을 추가하고, "HTML 태그" 방식의 `content` 값을 Railway 변수 `GOOGLE_SITE_VERIFICATION` 에 넣은 뒤 재배포하고 확인을 눌러요.
+2. 사이트맵 메뉴에서 `https://aieo.kr/sitemap.xml` 을 제출하고, URL 검사에 `https://aieo.kr/` 을 넣어 "색인 생성 요청"을 눌러요.
+3. 네이버 서치어드바이저(https://searchadvisor.naver.com)에서 `https://aieo.kr` 을 등록하고, HTML 태그의 `content` 값을 `NAVER_SITE_VERIFICATION` 에 넣어 확인해요. 요청 → 사이트맵 제출에 `https://aieo.kr/sitemap.xml`, 웹 페이지 수집 요청에 `https://aieo.kr/` 을 넣어요.
