@@ -194,7 +194,7 @@ function classifySource(req) {
   const ref = req.get("referer") || "";
   let host = "";
   try { host = new URL(ref).hostname.replace(/^www\./, ""); } catch {}
-  if (!host || host === req.hostname) return "직접 방문";
+  if (!host || host === req.hostname.replace(/^www\./, "")) return "직접 방문";
   if (/naver\./.test(host)) return "네이버";
   if (/google\./.test(host)) return "구글";
   if (/daum\.|kakao\./.test(host)) return host.includes("kakao") ? "카카오" : "다음";
@@ -533,6 +533,7 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
   for (let i = 0; i < days; i++) daily[kstDay(since + i * 86400000 + 3600000)] = { views: 0, visitors: new Set(), signups: 0, sources: {} };
   const sources = {};
   const referrers = {};
+  const selfHost = req.hostname.replace(/^www\./, "");
   const allVisitors = new Set();
   for (const r of rows) {
     const d = daily[kstDay(r.ts)];
@@ -544,9 +545,12 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
     if (r.referrer) {
       try {
         const u = new URL(r.referrer);
-        if (u.hostname !== req.hostname) {
-          const k = u.hostname.replace(/^www\./, "") + u.pathname.slice(0, 40);
-          referrers[k] = (referrers[k] || 0) + 1;
+        const host = u.hostname.replace(/^www\./, "");
+        if (host !== selfHost) {
+          const k = host + u.pathname.slice(0, 40);
+          const e = (referrers[k] ||= { n: 0, last: 0 });
+          e.n++;
+          if (r.ts > e.last) e.last = r.ts;
         }
       } catch {}
     }
@@ -571,7 +575,8 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
     sources: Object.entries(sources)
       .map(([name, v]) => ({ name, views: v.views, visitors: v.visitors.size }))
       .sort((a, b) => b.visitors - a.visitors),
-    referrers: Object.entries(referrers).map(([url, n]) => ({ url, n })).sort((a, b) => b.n - a.n).slice(0, 15),
+    // 최근에 들어온 주소가 위로 옵니다. 횟수 순으로만 정렬하면 예전에 많이 들어온 주소가 계속 자리를 차지해서 새 유입이 안 보였어요.
+    referrers: Object.entries(referrers).map(([url, e]) => ({ url, n: e.n, last: e.last })).sort((a, b) => b.last - a.last).slice(0, 30),
   });
 });
 

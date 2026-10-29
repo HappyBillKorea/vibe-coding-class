@@ -280,8 +280,14 @@
       : '<tr><td class="muted">아직 방문 기록이 없어요.</td></tr>';
 
     $("#refs").innerHTML = d.referrers.length
-      ? "<tr><th>주소</th><th style='text-align:right'>방문</th></tr>" + d.referrers.map((r) => `<tr><td>${esc(r.url)}</td><td style="text-align:right">${r.n}</td></tr>`).join("")
+      ? "<tr><th>주소</th><th style='text-align:right'>방문</th><th style='text-align:right'>마지막 방문</th></tr>" + d.referrers.map((r) => `<tr><td>${esc(r.url)}</td><td style="text-align:right">${r.n}</td><td style="text-align:right;white-space:nowrap" class="muted">${fmtLast(r.last)}</td></tr>`).join("")
       : '<tr><td class="muted">아직 기록이 없어요.</td></tr>';
+  }
+
+  // 마지막 방문 시각(한국 시간): 10/29 14:05
+  function fmtLast(ts) {
+    const t = new Date(ts + 9 * 3600 * 1000).toISOString();
+    return `${Number(t.slice(5, 7))}/${Number(t.slice(8, 10))} ${t.slice(11, 16)}`;
   }
 
   async function loadSms() {
