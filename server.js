@@ -241,16 +241,18 @@ function formatSlot(slot) {
 const app = express();
 app.set("trust proxy", 1);
 app.use(express.json({ limit: "10kb" }));
-// Railway 기본 주소로 들어오면 대표 도메인으로 보냅니다(검색엔진에 주소가 둘로 나뉘지 않게). API는 그대로 둡니다.
+// Railway 기본 주소나 www 주소로 들어오면 대표 도메인으로 보냅니다(검색엔진에 주소가 둘로 나뉘지 않게). API는 그대로 둡니다.
+const SITE_HOST = new URL(SITE_URL).hostname;
 app.use((req, res, next) => {
-  if (req.method === "GET" && /\.up\.railway\.app$/.test(req.hostname) && !req.path.startsWith("/api/")) {
+  const altHost = /\.up\.railway\.app$/.test(req.hostname) || req.hostname === "www." + SITE_HOST;
+  if (req.method === "GET" && altHost && !req.path.startsWith("/api/")) {
     return res.redirect(301, SITE_URL + req.originalUrl);
   }
   next();
 });
 
 app.get("/robots.txt", (req, res) => {
-  res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /api/\nDisallow: /info\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+  res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /api/\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 });
 
 app.get("/sitemap.xml", (req, res) => {
@@ -261,6 +263,24 @@ app.get("/sitemap.xml", (req, res) => {
 </urlset>
 `);
 });
+
+// IndexNow: 네이버·빙에 "페이지가 바뀌었으니 다시 가져가세요"라고 바로 알립니다. 키는 대표 주소로 정해져서 따로 설정할 게 없어요.
+const INDEXNOW_KEY = crypto.createHash("sha256").update(SITE_URL + ":indexnow").digest("hex").slice(0, 32);
+app.get(`/${INDEXNOW_KEY}.txt`, (req, res) => res.type("text/plain").send(INDEXNOW_KEY));
+let indexNowTimer = null;
+function pingIndexNow() {
+  if (!IS_PROD) return;
+  clearTimeout(indexNowTimer);
+  indexNowTimer = setTimeout(async () => {
+    const body = JSON.stringify({ host: SITE_HOST, key: INDEXNOW_KEY, keyLocation: `${SITE_URL}/${INDEXNOW_KEY}.txt`, urlList: [SITE_URL + "/"] });
+    for (const endpoint of ["https://searchadvisor.naver.com/indexnow", "https://api.indexnow.org/indexnow"]) {
+      try {
+        const r = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json; charset=utf-8" }, body, signal: AbortSignal.timeout(10000) });
+        console.log(`IndexNow ${endpoint}: ${r.status}`);
+      } catch (e) { console.warn(`IndexNow ${endpoint} 실패: ${e.message}`); }
+    }
+  }, 60 * 1000); // 배포 직후나 일정을 여러 번 고칠 때 한 번만 보내도록 1분 기다립니다.
+}
 
 const htmlEsc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -274,28 +294,61 @@ function slotsSsr() {
   if (!slots.length) return '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>';
   return "<ul class=\"muted\">" + slots.map((s) => `<li>${htmlEsc(formatSlot(s))} · ${htmlEsc(s.place)} · 정원 ${s.capacity}명</li>`).join("") + "</ul>";
 }
-// 구글 검색 결과에 강의 정보가 나오도록 하는 구조화 데이터(Course)
-function courseJsonLd() {
-  const data = {
-    "@context": "https://schema.org",
-    "@type": "Course",
-    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 30분 만에 첫 서비스 만들기",
-    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 30분 입문 강의.",
-    inLanguage: "ko",
-    url: SITE_URL + "/",
-    image: SITE_URL + "/og.png",
-    provider: { "@type": "Person", name: "Bill", jobTitle: "IT 회사 15년 차 서비스 기획자", email: "bill@neonex.team" },
-    offers: { "@type": "Offer", category: "Paid", price: 30000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
-    hasCourseInstance: openUpcomingSlots().map((s) => ({
-      "@type": "CourseInstance",
-      courseMode: "Onsite",
-      startDate: `${s.date}T${s.start}:00+09:00`,
-      endDate: `${s.date}T${s.end}:00+09:00`,
-      location: { "@type": "Place", name: s.place, address: { "@type": "PostalAddress", addressLocality: "강남구", addressRegion: "서울", addressCountry: "KR" } },
-      instructor: { "@type": "Person", name: "Bill" },
-    })),
-  };
-  return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
+// 구글·네이버 검색 결과에 사이트 이름, 강의 정보, 일정(이벤트)이 나오도록 하는 구조화 데이터
+const COURSE_NAME = "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 30분 만에 첫 서비스 만들기";
+const COURSE_DESC = "코딩을 몰라도 클로드 코드와 대화하며 나만의 웹페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 30분 입문 강의.";
+const PRICE = 30000;
+function structuredData() {
+  const orgId = SITE_URL + "/#org";
+  const instructor = { "@type": "Person", name: "Bill", jobTitle: "IT 회사 15년 차 서비스 기획자", image: SITE_URL + "/bill.jpg" };
+  const place = (s) => ({ "@type": "Place", name: `${s.place} (서울 강남구)`, address: { "@type": "PostalAddress", addressLocality: "강남구", addressRegion: "서울특별시", addressCountry: "KR" } });
+  const slots = openUpcomingSlots();
+  const graph = [
+    { "@type": "WebSite", "@id": SITE_URL + "/#website", url: SITE_URL + "/", name: "바이브 코딩 입문 클래스", alternateName: ["바이브코딩 클래스", "aieo.kr"], inLanguage: "ko", publisher: { "@id": orgId } },
+    { "@type": "EducationalOrganization", "@id": orgId, name: "바이브 코딩 입문 클래스", url: SITE_URL + "/", logo: SITE_URL + "/icon-512.png", image: SITE_URL + "/og.png", email: "bill@neonex.team" },
+    {
+      "@type": "Course",
+      name: COURSE_NAME,
+      description: COURSE_DESC,
+      inLanguage: "ko",
+      url: SITE_URL + "/",
+      image: SITE_URL + "/og.png",
+      provider: { "@id": orgId },
+      educationalLevel: "Beginner",
+      teaches: ["바이브 코딩", "Claude Code 사용법", "웹페이지 만들기", "깃허브 배포"],
+      offers: { "@type": "Offer", category: "Paid", price: PRICE, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
+      hasCourseInstance: slots.map((s) => ({
+        "@type": "CourseInstance",
+        courseMode: "Onsite",
+        courseWorkload: "PT2H30M",
+        startDate: `${s.date}T${s.start}:00+09:00`,
+        endDate: `${s.date}T${s.end}:00+09:00`,
+        location: place(s),
+        instructor,
+      })),
+    },
+    // 오프라인 일정은 이벤트로도 알려 주면 구글 이벤트 검색에 나올 수 있어요.
+    ...slots.map((s) => {
+      const left = Math.max(0, s.capacity - q.countSlot.get(s.id).n);
+      return {
+        "@type": "EducationEvent",
+        name: `바이브 코딩 입문 클래스 ${formatSlot(s)}`,
+        description: COURSE_DESC,
+        startDate: `${s.date}T${s.start}:00+09:00`,
+        endDate: `${s.date}T${s.end}:00+09:00`,
+        eventStatus: "https://schema.org/EventScheduled",
+        eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+        location: place(s),
+        image: [SITE_URL + "/og.png"],
+        organizer: { "@id": orgId },
+        performer: instructor,
+        maximumAttendeeCapacity: s.capacity,
+        remainingAttendeeCapacity: left,
+        offers: { "@type": "Offer", price: PRICE, priceCurrency: "KRW", url: SITE_URL + "/#apply", availability: left > 0 ? "https://schema.org/InStock" : "https://schema.org/SoldOut" },
+      };
+    }),
+  ];
+  return `<script type="application/ld+json">${JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c")}</script>`;
 }
 
 // 카카오톡·페이스북 등은 미리보기 이미지 주소를 절대 경로로 요구해서, 접속한 도메인을 붙여 내려줍니다.
@@ -308,7 +361,7 @@ app.get(["/", "/index.html"], (req, res) => {
     (NAVER_SITE_VERIFICATION ? `<meta name="naver-site-verification" content="${htmlEsc(NAVER_SITE_VERIFICATION)}">\n` : "");
   res.type("html").send(indexHtml
     .replaceAll('content="/og.png"', `content="${origin}/og.png"`)
-    .replace("<!--SEO_EXTRA-->", verify + courseJsonLd())
+    .replace("<!--SEO_EXTRA-->", verify + structuredData())
     .replace("<!--SLOTS_SSR-->", slotsSsr())
     .replace("</head>", `<meta name="build-id" content="${BUILD_ID}">\n</head>`));
 });
@@ -616,6 +669,7 @@ app.post("/api/admin/slots", requireAdmin, (req, res) => {
   if (error) return res.status(400).json({ error });
   slot.id = `${slot.date}-${slot.start.replace(":", "")}-${crypto.randomBytes(2).toString("hex")}`;
   q.insertSlot.run(slot);
+  pingIndexNow();
   res.json({ success: true });
 });
 
@@ -626,6 +680,7 @@ app.put("/api/admin/slots/:id", requireAdmin, (req, res) => {
   const taken = q.countSlot.get(req.params.id).n;
   if (slot.capacity < taken) return res.status(400).json({ error: `이미 ${taken}명이 신청해서 정원을 그보다 줄일 수 없어요.` });
   q.updateSlot.run({ ...slot, id: req.params.id });
+  pingIndexNow();
   res.json({ success: true });
 });
 
@@ -641,6 +696,7 @@ app.delete("/api/admin/slots/:id", requireAdmin, (req, res) => {
   const past = startsAt(slot) <= Date.now();
   if (taken > 0 && !past) return res.status(400).json({ error: `신청자 ${taken}명이 있어 삭제할 수 없어요. 신청 받기를 끄거나 신청자를 먼저 취소해 주세요.` });
   deleteSlotWithSignups(slot.id);
+  pingIndexNow();
   res.json({ success: true, removedSignups: taken });
 });
 
@@ -698,4 +754,5 @@ app.listen(PORT, () => {
   if (IGNORED_DATA_DIR) console.warn(`⚠️ DATA_DIR(${requestedDir})이 볼륨 밖이라 무시하고 볼륨에 저장합니다. Railway Variables에서 DATA_DIR을 지워 주세요.`);
   if (DATA_NOT_PERSISTENT) console.warn("⚠️ Railway 볼륨이 없어 재배포하면 일정·신청·통계 데이터가 지워집니다.");
   if (!smsConfigured()) console.log("솔라피 키가 없어 개발 모드로 인증번호를 콘솔에 출력합니다.");
+  pingIndexNow();
 });
