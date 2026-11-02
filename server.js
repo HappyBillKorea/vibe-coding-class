@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
+const { sendTelegram } = require("./lib/telegram");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -489,14 +490,21 @@ app.post("/api/apply", async (req, res) => {
 
   q.deleteToken.run(t.token);
 
+  const taken = q.countSlot.get(slot.id).n;
   if (smsConfigured()) {
     sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
-    const taken = q.countSlot.get(slot.id).n;
     // 전화번호를 마지막 줄에 따로 두어, 문자앱이 번호와 날짜를 하나의 링크로 묶지 않게 합니다.
     const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone(t.phone)}`;
     for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
+  // 텔레그램 알림은 글자 수 제한이 없어 메모까지 함께 보냅니다. 설정이 없거나 실패해도 신청은 유지돼요.
+  sendTelegram([
+    `[새 신청] ${name} (${taken}/${slot.capacity}명)`,
+    `일정: ${formatSlot(slot)}`,
+    `연락처: ${fmtPhone(t.phone)}`,
+    memo && `메모: ${memo}`,
+  ].filter(Boolean).join("\n"));
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
 });
 
