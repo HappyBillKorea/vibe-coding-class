@@ -29,7 +29,6 @@ const NAVER_SITE_VERIFICATION = process.env.NAVER_SITE_VERIFICATION || "";
 // 신청자에게 문자로 보내는 수강 안내 페이지 주소 (public/info.html)
 const INFO_URL = process.env.INFO_URL || "aieo.kr/info";
 // 새 신청이 들어오면 알림 문자를 받을 번호 (여러 개는 쉼표로 구분)
-const ADMIN_PHONES = (process.env.ADMIN_PHONE || "").split(",").map((p) => p.replace(/\D/g, "")).filter(Boolean);
 
 const CODE_TTL_MS = 3 * 60 * 1000; // 인증번호 유효시간 3분
 const RESEND_COOLDOWN_MS = 60 * 1000; // 같은 번호 재발송 대기 1분
@@ -505,11 +504,8 @@ app.post("/api/apply", async (req, res) => {
   if (smsConfigured()) {
     sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
-    // 전화번호를 마지막 줄에 따로 두어, 문자앱이 번호와 날짜를 하나의 링크로 묶지 않게 합니다.
-    const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone(t.phone)}`;
-    for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
-  // 텔레그램 알림은 설정이 없거나 실패해도 신청은 유지돼요.
+  // 운영자에게 가는 새 신청 알림은 텔레그램으로만 보냅니다. 설정이 없거나 실패해도 신청은 유지돼요.
   sendTelegram(signupTelegramText({ name, phone: t.phone, memo }, slot, taken));
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
 });
@@ -613,9 +609,10 @@ function slotsWithCounts() {
 }
 
 app.get("/api/admin/sms-balance", requireAdmin, async (req, res) => {
-  if (!smsConfigured()) return res.json({ configured: false, notifyTo: ADMIN_PHONES.length });
+  const telegram = telegramConfigured();
+  if (!smsConfigured()) return res.json({ configured: false, telegram });
   try {
-    res.json({ configured: true, notifyTo: ADMIN_PHONES.length, ...(await getBalance()) });
+    res.json({ configured: true, telegram, ...(await getBalance()) });
   } catch (e) {
     res.status(502).json({ error: "솔라피 잔액을 불러오지 못했어요." });
   }
