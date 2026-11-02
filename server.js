@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
-const { sendTelegram } = require("./lib/telegram");
+const { sendTelegram, telegramConfigured } = require("./lib/telegram");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -117,6 +117,7 @@ const q = {
   ),
   findSignup: db.prepare("SELECT id FROM signups WHERE slot_id = ? AND phone = ?"),
   listSignups: db.prepare("SELECT * FROM signups ORDER BY slot_id, created_at"),
+  lastSignup: db.prepare("SELECT * FROM signups ORDER BY created_at DESC, id DESC LIMIT 1"),
   deleteSignup: db.prepare("DELETE FROM signups WHERE id = ?"),
   lastSend: db.prepare("SELECT MAX(sent_at) AS t FROM sends WHERE phone = ?"),
   sendsByPhone: db.prepare("SELECT COUNT(*) AS n FROM sends WHERE phone = ? AND sent_at > ?"),
@@ -469,6 +470,16 @@ app.post("/api/verify-code", (req, res) => {
   res.json({ success: true, token });
 });
 
+// 텔레그램은 글자 수 제한이 없어 이름 전체와 신청자가 남긴 메모까지 함께 보냅니다.
+function signupTelegramText(signup, slot, taken, prefix = "[새 신청]") {
+  return [
+    `${prefix} ${signup.name}` + (slot ? ` (${taken}/${slot.capacity}명)` : ""),
+    `일정: ${slot ? formatSlot(slot) : signup.slot_id}`,
+    `연락처: ${fmtPhone(signup.phone)}`,
+    signup.memo && `메모: ${signup.memo}`,
+  ].filter(Boolean).join("\n");
+}
+
 app.post("/api/apply", async (req, res) => {
   const { slotId, token } = req.body;
   const name = String(req.body.name || "").trim().slice(0, 30);
@@ -498,13 +509,8 @@ app.post("/api/apply", async (req, res) => {
     const note = `[새신청] ${name.slice(0, 5)} ${taken}/${slot.capacity}명\n${shortSlot(slot)}\n${fmtPhone(t.phone)}`;
     for (const to of ADMIN_PHONES) sendSms(to, note).catch(() => {});
   }
-  // 텔레그램 알림은 글자 수 제한이 없어 메모까지 함께 보냅니다. 설정이 없거나 실패해도 신청은 유지돼요.
-  sendTelegram([
-    `[새 신청] ${name} (${taken}/${slot.capacity}명)`,
-    `일정: ${formatSlot(slot)}`,
-    `연락처: ${fmtPhone(t.phone)}`,
-    memo && `메모: ${memo}`,
-  ].filter(Boolean).join("\n"));
+  // 텔레그램 알림은 설정이 없거나 실패해도 신청은 유지돼요.
+  sendTelegram(signupTelegramText({ name, phone: t.phone, memo }, slot, taken));
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
 });
 
@@ -613,6 +619,17 @@ app.get("/api/admin/sms-balance", requireAdmin, async (req, res) => {
   } catch (e) {
     res.status(502).json({ error: "솔라피 잔액을 불러오지 못했어요." });
   }
+});
+
+// 관리자 화면의 "텔레그램 테스트" 버튼: 가장 최근 신청자 1명의 정보로 알림을 한 번 보내 봅니다.
+app.post("/api/admin/telegram-test", requireAdmin, async (req, res) => {
+  if (!telegramConfigured()) return res.status(503).json({ error: "TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID가 설정되지 않았어요." });
+  const last = q.lastSignup.get();
+  const text = last
+    ? signupTelegramText(last, loadSchedule().find((s) => s.id === last.slot_id), q.countSlot.get(last.slot_id).n, "[테스트·최근 신청]")
+    : "[테스트] 텔레그램 알림이 연결됐어요. 아직 신청자는 없어요.";
+  if (!(await sendTelegram(text))) return res.status(502).json({ error: "텔레그램 발송에 실패했어요. 토큰과 채팅 ID, 봇에게 먼저 메시지를 보냈는지 확인해 주세요." });
+  res.json({ success: true, name: last ? last.name : null });
 });
 
 app.get("/api/admin/slots", requireAdmin, (req, res) => {
