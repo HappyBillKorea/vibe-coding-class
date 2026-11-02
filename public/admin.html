@@ -142,6 +142,7 @@
       <div class="card sms">
         <div><div class="l">문자 잔액 (솔라피)</div><div class="v" id="smsBal">-</div></div>
         <div class="muted" id="smsNote"></div>
+        <button class="btn ghost sm" id="tgTest" type="button">텔레그램 테스트 알림</button>
       </div>
       <div class="card">
         <h2>일별 방문자</h2>
@@ -305,6 +306,15 @@
       $("#smsNote").textContent = d.notifyTo ? `새 신청 알림 문자 ${d.notifyTo}개 번호로 발송 중` : "새 신청 알림 번호(ADMIN_PHONE) 미설정";
     } catch (e) { $("#smsBal").textContent = "-"; $("#smsNote").textContent = e.message; }
   }
+
+  $("#tgTest").addEventListener("click", async () => {
+    const b = $("#tgTest"); b.disabled = true;
+    try {
+      const d = await api("/api/admin/telegram-test", { method: "POST" });
+      alert(d.name ? `최근 신청자(${d.name}) 정보로 텔레그램 알림을 보냈어요.` : "텔레그램 테스트 알림을 보냈어요.");
+    } catch (e) { alert(e.message); }
+    b.disabled = false;
+  });
 
   // ── 강의 일정 ──
   let editingId = null;
