@@ -64,6 +64,8 @@
   .chart { display: flex; align-items: flex-end; gap: 4px; height: 160px; padding-top: 8px; }
   .chart .col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; min-width: 0; position: relative; }
   .chart .bar { width: 100%; max-width: 28px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .chart .bv { font-size: .68rem; color: var(--muted); font-variant-numeric: tabular-nums; line-height: 1; margin-bottom: 3px; white-space: nowrap; }
+  .chart.dense .bv { display: none; }
   .chart .col:hover .tip { display: block; }
   .tip { display: none; position: absolute; bottom: 100%; background: var(--ink); color: var(--bg); font-size: .78rem; padding: 4px 8px; border-radius: 6px; white-space: nowrap; z-index: 2; }
   .axis { display: flex; gap: 4px; margin-top: 6px; }
@@ -151,6 +153,11 @@
         <h2>일별 방문자</h2>
         <div class="chart" id="chart"></div>
         <div class="axis" id="axis"></div>
+      </div>
+      <div class="card">
+        <h2>요일별 합계</h2>
+        <div class="tbl"><table id="weekdays"></table></div>
+        <p class="muted" style="font-size:.85rem;margin:10px 0 0">위에서 고른 기간 안의 날짜를 요일별로 더한 값이에요.</p>
       </div>
       <div class="card">
         <h2>직접 방문 지역 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
@@ -273,8 +280,22 @@
     $("#rangeLabel").textContent = `${d.daily[0].date} ~ ${d.daily[d.daily.length - 1].date} (한국 시간)`;
 
     const max = Math.max(1, ...d.daily.map((x) => x.visitors));
+    // 막대 위에 방문자 수를 적습니다. 숫자 자리를 남기려고 가장 높은 막대를 85%로 잡고, 30일이 넘으면 막대가 좁아 숫자는 숨깁니다.
+    $("#chart").classList.toggle("dense", d.daily.length > 31);
     $("#chart").innerHTML = d.daily.map((x) =>
-      `<div class="col"><div class="tip">${x.date.slice(5)} · 방문자 ${x.visitors} · 뷰 ${x.views} · 신청 ${x.signups}</div><div class="bar" style="height:${x.visitors / max * 100}%"></div></div>`).join("");
+      `<div class="col"><div class="tip">${x.date.slice(5)} · 방문자 ${x.visitors} · 뷰 ${x.views} · 신청 ${x.signups}</div><span class="bv">${x.visitors || ""}</span><div class="bar" style="height:${x.visitors / max * 85}%"></div></div>`).join("");
+
+    // 요일별 합계: 기간 안의 날짜(한국 날짜)를 월~일로 묶어 방문자와 신청을 더합니다.
+    const wd = ["월", "화", "수", "목", "금", "토", "일"].map((name) => ({ name, n: 0, visitors: 0, signups: 0 }));
+    for (const x of d.daily) {
+      const w = wd[(new Date(x.date + "T00:00:00Z").getUTCDay() + 6) % 7];
+      w.n++; w.visitors += x.visitors; w.signups += x.signups;
+    }
+    const wmax = Math.max(1, ...wd.map((w) => w.visitors));
+    $("#weekdays").innerHTML = "<tr><th>요일</th><th>방문자</th><th style='text-align:right'>방문자 합</th><th style='text-align:right'>신청 합</th></tr>" +
+      wd.map((w) => `<tr><td${w.name === "토" || w.name === "일" ? ' style="color:var(--accent)"' : ""}><b>${w.name}</b> <span class="muted" style="font-size:.8rem">${w.n}일</span></td>` +
+        `<td style="width:45%"><div class="src" style="display:block;padding:0"><div class="track"><div class="fill" style="width:${w.visitors / wmax * 100}%"></div></div></div></td>` +
+        `<td style="text-align:right"><b>${w.visitors}</b></td><td style="text-align:right">${w.signups || '<span class="muted">-</span>'}</td></tr>`).join("");
     const step = Math.ceil(d.daily.length / 10);
     $("#axis").innerHTML = d.daily.map((x, i) => `<span>${i % step === 0 ? Number(x.date.slice(8)) : ""}</span>`).join("");
 
@@ -287,13 +308,19 @@
     const top = d.sources.slice(0, 6).map((x) => x.name);
     const rest = d.sources.length > top.length;
     const days = d.daily.filter((x) => x.visitors).reverse();
+    const srcCell = (v, b) => `<td style="text-align:right">${v ? (b ? `<b>${v}</b>` : v) : '<span class="muted">-</span>'}</td>`;
+    // 첫 줄은 기간 전체 합계입니다. 날짜별 숫자를 그대로 더한 값이라, 여러 날 들어온 사람은 날마다 한 번씩 셉니다.
+    const sumOf = (f) => days.reduce((n, x) => n + f(x), 0);
+    const totalRow = `<tr style="background:var(--accent-soft)"><td style="white-space:nowrap"><b>합계</b></td>` +
+      top.map((n) => srcCell(sumOf((x) => x.sources[n] || 0), true)).join("") +
+      (rest ? srcCell(sumOf((x) => Object.entries(x.sources).filter(([k]) => !top.includes(k)).reduce((m, [, v]) => m + v, 0)), true) : "") +
+      srcCell(sumOf((x) => x.visitors), true) + srcCell(sumOf((x) => x.signups), true) + "</tr>";
     $("#dailySources").innerHTML = days.length
-      ? "<tr><th>날짜</th>" + top.map((n) => `<th style="text-align:right">${esc(n)}</th>`).join("") + (rest ? "<th style='text-align:right'>그 외</th>" : "") + "<th style='text-align:right'>합계</th><th style='text-align:right'>신청</th></tr>" +
+      ? "<tr><th>날짜</th>" + top.map((n) => `<th style="text-align:right">${esc(n)}</th>`).join("") + (rest ? "<th style='text-align:right'>그 외</th>" : "") + "<th style='text-align:right'>합계</th><th style='text-align:right'>신청</th></tr>" + totalRow +
         days.map((x) => {
           const other = Object.entries(x.sources).filter(([k]) => !top.includes(k)).reduce((n, [, v]) => n + v, 0);
-          const cell = (v) => `<td style="text-align:right">${v ? v : '<span class="muted">-</span>'}</td>`;
-          return `<tr><td style="white-space:nowrap">${x.date.slice(5).replace("-", "/")}</td>` + top.map((n) => cell(x.sources[n] || 0)).join("") + (rest ? cell(other) : "") +
-            `<td style="text-align:right"><b>${x.visitors}</b></td>` + cell(x.signups) + "</tr>";
+          return `<tr><td style="white-space:nowrap">${x.date.slice(5).replace("-", "/")}</td>` + top.map((n) => srcCell(x.sources[n] || 0)).join("") + (rest ? srcCell(other) : "") +
+            `<td style="text-align:right"><b>${x.visitors}</b></td>` + srcCell(x.signups) + "</tr>";
         }).join("")
       : '<tr><td class="muted">아직 방문 기록이 없어요.</td></tr>';
 
