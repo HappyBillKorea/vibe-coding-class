@@ -100,6 +100,14 @@
   .group > summary h2::before { content: "▸"; color: var(--muted); font-size: .9em; transition: transform .15s; display: inline-block; }
   .group[open] > summary h2::before { transform: rotate(90deg); }
   .group[open] > summary { margin-bottom: 14px; }
+  /* 접어도 합계와 오늘 줄은 보이는 카드 (날짜별 유입 경로) */
+  .fold > h2 { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+  .fold > h2::before { content: "▸"; color: var(--muted); font-size: .9em; transition: transform .15s; display: inline-block; }
+  .fold.open > h2::before { transform: rotate(90deg); }
+  .fold:not(.open) table tr:nth-child(n+4) { display: none; }
+  .fold .more { display: block; width: 100%; margin-top: 8px; padding: 8px; background: none; border: 0; color: var(--muted); font: inherit; font-size: .85rem; cursor: pointer; }
+  .fold .more:hover { color: var(--ink); }
+  .fold .more:empty { display: none; }
   .group .pill.past { background: var(--line); color: var(--muted); }
 
   @media (max-width: 760px) {
@@ -154,10 +162,11 @@
         <div class="chart" id="chart"></div>
         <div class="axis" id="axis"></div>
       </div>
-      <details class="card group" id="dailySourcesBox">
-        <summary><h2>날짜별 유입 경로 <span style="color:var(--muted);font-weight:400;font-size:.85rem">(방문자 수)</span></h2></summary>
+      <div class="card fold" id="dailySourcesBox">
+        <h2 role="button" tabindex="0">날짜별 유입 경로 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
         <div class="tbl"><table id="dailySources"></table></div>
-      </details>
+        <button class="more" type="button" id="dailySourcesMore"></button>
+      </div>
       <div class="card">
         <h2>요일별 합계</h2>
         <div class="tbl"><table id="weekdays"></table></div>
@@ -268,6 +277,15 @@
 
   // ── 방문 통계 ──
   $("#days").addEventListener("change", () => loadStats().catch(() => {}));
+  // 날짜별 유입 경로 접기/펴기: 기본은 접힘(합계와 오늘만 보임)
+  function setDailySourcesMore() {
+    const box = $("#dailySourcesBox"), hidden = Math.max(0, $("#dailySources").rows.length - 3);
+    $("#dailySourcesMore").textContent = !hidden ? "" : box.classList.contains("open") ? "접기 ▴" : `이전 ${hidden}일 더 보기 ▾`;
+  }
+  function toggleDailySources() { $("#dailySourcesBox").classList.toggle("open"); setDailySourcesMore(); }
+  $("#dailySourcesBox h2").addEventListener("click", toggleDailySources);
+  $("#dailySourcesBox h2").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleDailySources(); } });
+  $("#dailySourcesMore").addEventListener("click", toggleDailySources);
   async function loadStats() {
     const d = await api("/api/admin/stats?days=" + $("#days").value);
     loadSms();
@@ -307,7 +325,8 @@
     // 날짜별 유입 경로: 많이 들어온 경로 6개를 열로, 나머지는 "그 외"로 묶습니다. 최근 날짜가 위로 옵니다.
     const top = d.sources.slice(0, 6).map((x) => x.name);
     const rest = d.sources.length > top.length;
-    const days = d.daily.filter((x) => x.visitors).reverse();
+    // 방문이 있었던 날만 보이되, 오늘은 0명이어도 넣어서 접었을 때 합계 바로 아래 오늘 줄이 보이게 합니다.
+    const days = d.daily.filter((x, i) => x.visitors || i === d.daily.length - 1).reverse();
     const srcCell = (v, b) => `<td style="text-align:right">${v ? (b ? `<b>${v}</b>` : v) : '<span class="muted">-</span>'}</td>`;
     // 첫 줄은 기간 전체 합계입니다. 날짜별 숫자를 그대로 더한 값이라, 여러 날 들어온 사람은 날마다 한 번씩 셉니다.
     const sumOf = (f) => days.reduce((n, x) => n + f(x), 0);
@@ -323,6 +342,8 @@
             `<td style="text-align:right"><b>${x.visitors}</b></td>` + srcCell(x.signups) + "</tr>";
         }).join("")
       : '<tr><td class="muted">아직 방문 기록이 없어요.</td></tr>';
+
+    setDailySourcesMore();
 
     const dr = d.directRegions || [];
     const rmax = Math.max(1, ...dr.map((x) => x.visitors));
