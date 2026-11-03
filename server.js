@@ -232,9 +232,12 @@ function trackVisit(req, res) {
   }
   const ref = (req.get("referer") || "").slice(0, 300);
   // 지역은 IP로 대략 찾아 저장하고, IP는 끝자리를 가린 형태로만 남깁니다.
-  // req.ip는 프록시(Railway) 뒤에서 X-Forwarded-For의 실제 방문자 주소를 씁니다 (trust proxy 설정).
-  const { region, city } = lookupRegion(req.ip);
-  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(req.ip) || null);
+  // 접속 경로(X-Forwarded-For)에 있는 주소 중 한국 주소가 있으면 그 주소로 지역을 찾고,
+  // 한국 주소가 하나도 없을 때만 해외 주소(req.ip)로 기록합니다. (중간 CDN 주소가 해외로 잡히는 걸 막기 위해)
+  const chain = [...(req.get("x-forwarded-for") || "").split(",").map((ip) => ip.trim()).filter(Boolean), req.ip];
+  const regionIp = chain.find((ip) => countryOf(ip) === "KR") || req.ip;
+  const { region, city } = lookupRegion(regionIp);
+  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null);
 }
 
 function kstDay(ts) {
