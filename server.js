@@ -275,16 +275,28 @@ const BLOCKED_HTML = `<!doctype html>
 .box{max-width:420px;text-align:center;background:#fff;border-radius:16px;padding:32px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}p{margin:0;line-height:1.6;color:#555;font-size:15px}</style>
 </head><body><div class="box"><h1>접속이 제한되었어요</h1>
 <p>이 사이트는 대한민국에서만 이용할 수 있어요.<br>해외에서 접속하셨거나 VPN을 쓰고 계시다면 끄고 다시 시도해 주세요.</p>
-<p style="margin-top:12px;font-size:13px;color:#999">This site is only available in South Korea.</p></div></body></html>`;
+<p style="margin-top:12px;font-size:13px;color:#999">This site is only available in South Korea.</p>
+<p style="margin-top:8px;font-size:12px;color:#bbb">확인된 접속 주소: <!--SEEN--></p></div></body></html>`;
+// 방문자 IP 후보를 모두 모읍니다. 사이트 앞에 Cloudflare 같은 프록시가 하나 더 있으면
+// req.ip(맨 오른쪽 주소)가 방문자가 아니라 그 프록시(대부분 미국 등 해외로 잡힘)가 되기 때문이에요.
+// 실제 방문자 주소는 CF-Connecting-IP, X-Real-IP, X-Forwarded-For 앞쪽에 들어 있어요.
+function clientIpCandidates(req) {
+  const list = [req.get("cf-connecting-ip"), req.get("true-client-ip"), req.get("x-real-ip"),
+    ...(req.get("x-forwarded-for") || "").split(","), req.ip];
+  return [...new Set(list.map((ip) => String(ip || "").trim()).filter(Boolean))].slice(0, 10);
+}
 app.use((req, res, next) => {
   if (!GEO_BLOCK) return next();
-  const country = countryOf(req.ip);
-  if (!country || ALLOWED_COUNTRIES.has(country)) return next();
+  const seen = clientIpCandidates(req).map((ip) => ({ ip, country: countryOf(ip) })).filter((x) => x.country);
+  // 나라를 아는 주소가 하나도 없으면(내부 주소 등) 막지 않고, 하나라도 허용 나라면 통과시켜요.
+  if (!seen.length || seen.some((x) => ALLOWED_COUNTRIES.has(x.country))) return next();
   const isPage = (req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api/");
   if (isPage && ALLOWED_BOT_RE.test(req.get("user-agent") || "")) return next();
+  const summary = seen.map((x) => `${maskIp(x.ip)}(${x.country})`).join(", ");
+  console.log(`geo block ${req.method} ${req.path} ${summary}`);
   res.set("Cache-Control", "no-store");
   if (req.path.startsWith("/api/")) return res.status(403).json({ error: "해외에서는 이용할 수 없어요. 대한민국에서 접속해 주세요." });
-  res.status(403).type("html").send(BLOCKED_HTML);
+  res.status(403).type("html").send(BLOCKED_HTML.replace("<!--SEEN-->", htmlEsc(summary)));
 });
 
 app.use(express.json({ limit: "10kb" }));
