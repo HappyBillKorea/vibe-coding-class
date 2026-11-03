@@ -1,0 +1,11 @@
+{
+  "name": "바이브 코딩 입문 클래스",
+  "short_name": "바이브 코딩",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ],
+  "theme_color": "#1c1917",
+  "background_color": "#faf8f5",
+  "display": "standalone"
+}
