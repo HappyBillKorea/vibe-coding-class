@@ -257,26 +257,12 @@ function formatSlot(slot) {
 
 // ── 앱 ───────────────────────────────────────────────
 const app = express();
-// 방문자 주소는 X-Forwarded-For를 오른쪽부터 읽어, 믿을 수 있는 프록시를 건너뛴 첫 주소로 정합니다.
-// 믿는 프록시: 바로 앞 Railway 입구(i === 0)와, 그 앞에 붙을 수 있는 Cloudflare(공개된 IP 대역).
-// 사이트 앞에 Cloudflare가 있으면 맨 오른쪽이 Cloudflare 주소(미국 등)라서 한국 방문자도 해외로 잡혔어요.
-const net = require("net");
-const CLOUDFLARE_RANGES = [
-  "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
-  "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
-  "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
-  "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32", "2a06:98c0::/29", "2c0f:f248::/32",
-];
-const cloudflare = new net.BlockList();
-for (const r of CLOUDFLARE_RANGES) {
-  const [addr, bits] = r.split("/");
-  cloudflare.addSubnet(addr, Number(bits), addr.includes(":") ? "ipv6" : "ipv4");
-}
-const isCloudflare = (ip) => {
-  ip = String(ip || "").replace(/^::ffff:/, "");
-  try { return cloudflare.check(ip, ip.includes(":") ? "ipv6" : "ipv4"); } catch { return false; }
-};
-app.set("trust proxy", (addr, i) => i === 0 || isCloudflare(addr));
+// 방문자 주소(req.ip)는 X-Forwarded-For의 맨 왼쪽 주소를 씁니다.
+// Railway는 입구와 앱 사이에 CDN(CDN77·Fastly 등, 브라질·미국 등 해외 주소)을 거치게 바뀌는 중이라
+// 맨 오른쪽 주소는 그 CDN 주소가 됩니다. Railway 입구가 방문자가 보낸 X-Forwarded-For를 지우고 새로 쓰기 때문에
+// 맨 왼쪽이 실제 방문자이고 조작할 수 없다는 게 Railway 안내입니다.
+// (https://station.railway.com/questions/which-header-should-i-rely-on-for-real-c-d78a6f96)
+app.set("trust proxy", true);
 
 // ── 해외 IP 차단 ─────────────────────────────────────
 // 한국(KR) 외 나라에서 들어오면 403 안내 페이지를 보여줍니다.
@@ -298,8 +284,7 @@ const BLOCKED_HTML = `<!doctype html>
 <p style="margin-top:8px;font-size:12px;color:#bbb">확인된 접속 주소: <!--SEEN--></p></div></body></html>`;
 app.use((req, res, next) => {
   if (!GEO_BLOCK) return next();
-  // req.ip는 아래 trust proxy 설정으로 Railway·Cloudflare를 건너뛴 실제 방문자 주소예요.
-  // 방문자가 직접 써 넣을 수 있는 앞쪽 주소는 보지 않아서, 가짜 헤더로 우회할 수 없어요.
+  // req.ip는 위 trust proxy 설정에 따라 Railway가 적어 준 실제 방문자 주소예요.
   const country = countryOf(req.ip);
   if (!country || ALLOWED_COUNTRIES.has(country)) return next();
   const isPage = (req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api/");
