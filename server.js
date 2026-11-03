@@ -104,6 +104,13 @@ db.exec(`
   if (!cols.includes("city")) db.exec("ALTER TABLE visits ADD COLUMN city TEXT");
   if (!cols.includes("ip")) db.exec("ALTER TABLE visits ADD COLUMN ip TEXT");
 }
+// 2026-11-03 이전 직접 방문 지역 중 "해외(…)"는 Railway CDN 주소로 잘못 잡힌 기록이라 지역 정보를 지웁니다.
+// 방문 기록(방문자 수)은 그대로 두고 지역·IP 칸만 비워요. 이 시각 이후 기록은 건드리지 않아요.
+{
+  const n = db.prepare("UPDATE visits SET region = NULL, city = NULL, ip = NULL WHERE region LIKE '해외(%' AND ts < ?")
+    .run(Date.parse("2026-11-03T09:20:00Z")).changes;
+  if (n) console.log(`잘못 잡힌 해외 지역 기록 ${n}건을 지웠어요.`);
+}
 
 const q = {
   allSlots: db.prepare("SELECT * FROM slots ORDER BY date, start"),
@@ -232,9 +239,12 @@ function trackVisit(req, res) {
   }
   const ref = (req.get("referer") || "").slice(0, 300);
   // 지역은 IP로 대략 찾아 저장하고, IP는 끝자리를 가린 형태로만 남깁니다.
-  // req.ip는 프록시(Railway) 뒤에서 X-Forwarded-For의 실제 방문자 주소를 씁니다 (trust proxy 설정).
-  const { region, city } = lookupRegion(req.ip);
-  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(req.ip) || null);
+  // 접속 경로(X-Forwarded-For)에 있는 주소 중 한국 주소가 있으면 그 주소로 지역을 찾고,
+  // 한국 주소가 하나도 없을 때만 해외 주소(req.ip)로 기록합니다. (중간 CDN 주소가 해외로 잡히는 걸 막기 위해)
+  const chain = [...(req.get("x-forwarded-for") || "").split(",").map((ip) => ip.trim()).filter(Boolean), req.ip];
+  const regionIp = chain.find((ip) => countryOf(ip) === "KR") || req.ip;
+  const { region, city } = lookupRegion(regionIp);
+  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null);
 }
 
 function kstDay(ts) {
