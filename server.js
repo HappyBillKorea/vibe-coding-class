@@ -5,6 +5,7 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
 const { sendTelegram, telegramConfigured } = require("./lib/telegram");
+const { lookupRegion, maskIp } = require("./lib/geo");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -96,6 +97,14 @@ db.exec(`
   );
 `);
 
+// 예전 DB에는 지역 칸이 없어서 추가합니다. (이전 방문 기록은 지역이 비어 있어요)
+{
+  const cols = db.prepare("PRAGMA table_info(visits)").all().map((c) => c.name);
+  if (!cols.includes("region")) db.exec("ALTER TABLE visits ADD COLUMN region TEXT");
+  if (!cols.includes("city")) db.exec("ALTER TABLE visits ADD COLUMN city TEXT");
+  if (!cols.includes("ip")) db.exec("ALTER TABLE visits ADD COLUMN ip TEXT");
+}
+
 const q = {
   allSlots: db.prepare("SELECT * FROM slots ORDER BY date, start"),
   getSlot: db.prepare("SELECT * FROM slots WHERE id = ?"),
@@ -106,8 +115,8 @@ const q = {
     "UPDATE slots SET date = @date, start = @start, end = @end, place = @place, capacity = @capacity, open = @open WHERE id = @id"
   ),
   deleteSlot: db.prepare("DELETE FROM slots WHERE id = ?"),
-  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer) VALUES (?, ?, ?, ?)"),
-  visitsSince: db.prepare("SELECT ts, vid, source, referrer FROM visits WHERE ts >= ?"),
+  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip) VALUES (?, ?, ?, ?, ?, ?, ?)"),
+  visitsSince: db.prepare("SELECT ts, vid, source, referrer, region, city, ip FROM visits WHERE ts >= ?"),
   signupsSince: db.prepare("SELECT created_at FROM signups WHERE created_at >= ?"),
   countBySlot: db.prepare("SELECT slot_id, COUNT(*) AS n FROM signups GROUP BY slot_id"),
   countSlot: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE slot_id = ?"),
@@ -217,7 +226,10 @@ function trackVisit(req, res) {
     res.cookie("vid", vid, { maxAge: 365 * 24 * 3600 * 1000, httpOnly: true, sameSite: "lax", secure: req.secure });
   }
   const ref = (req.get("referer") || "").slice(0, 300);
-  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null);
+  // 지역은 IP로 대략 찾아 저장하고, IP는 끝자리를 가린 형태로만 남깁니다.
+  // req.ip는 프록시(Railway) 뒤에서 X-Forwarded-For의 실제 방문자 주소를 씁니다 (trust proxy 설정).
+  const { region, city } = lookupRegion(req.ip);
+  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(req.ip) || null);
 }
 
 function kstDay(ts) {
@@ -545,6 +557,9 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
   const referrers = {};
   const selfHost = req.hostname.replace(/^www\./, "");
   const allVisitors = new Set();
+  // 직접 방문(주소 직접 입력·즐겨찾기 등)의 지역별 방문자와 최근 기록
+  const directRegions = {};
+  const directRecent = [];
   for (const r of rows) {
     const d = daily[kstDay(r.ts)];
     if (d) { d.views++; d.visitors.add(r.vid); (d.sources[r.source] ||= new Set()).add(r.vid); }
@@ -552,6 +567,14 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
     sources[r.source] = sources[r.source] || { views: 0, visitors: new Set() };
     sources[r.source].views++;
     sources[r.source].visitors.add(r.vid);
+    if (r.source === "직접 방문") {
+      const name = r.region || "기록 전";
+      const e = (directRegions[name] ||= { views: 0, visitors: new Set(), cities: {} });
+      e.views++;
+      e.visitors.add(r.vid);
+      if (r.city) (e.cities[r.city] ||= new Set()).add(r.vid);
+      if (r.region) directRecent.push({ ts: r.ts, region: r.region, city: r.city || "", ip: r.ip || "" });
+    }
     if (r.referrer) {
       try {
         const u = new URL(r.referrer);
@@ -587,6 +610,13 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       .sort((a, b) => b.visitors - a.visitors),
     // 최근에 들어온 주소가 위로 옵니다. 횟수 순으로만 정렬하면 예전에 많이 들어온 주소가 계속 자리를 차지해서 새 유입이 안 보였어요.
     referrers: Object.entries(referrers).map(([url, e]) => ({ url, n: e.n, last: e.last })).sort((a, b) => b.last - a.last).slice(0, 30),
+    directRegions: Object.entries(directRegions)
+      .map(([name, v]) => ({
+        name, views: v.views, visitors: v.visitors.size,
+        cities: Object.entries(v.cities).map(([c, set]) => ({ name: c, visitors: set.size })).sort((a, b) => b.visitors - a.visitors).slice(0, 8),
+      }))
+      .sort((a, b) => b.visitors - a.visitors),
+    directRecent: directRecent.sort((a, b) => b.ts - a.ts).slice(0, 30),
   });
 });
 
