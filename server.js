@@ -257,7 +257,26 @@ function formatSlot(slot) {
 
 // ── 앱 ───────────────────────────────────────────────
 const app = express();
-app.set("trust proxy", 1);
+// 방문자 주소는 X-Forwarded-For를 오른쪽부터 읽어, 믿을 수 있는 프록시를 건너뛴 첫 주소로 정합니다.
+// 믿는 프록시: 바로 앞 Railway 입구(i === 0)와, 그 앞에 붙을 수 있는 Cloudflare(공개된 IP 대역).
+// 사이트 앞에 Cloudflare가 있으면 맨 오른쪽이 Cloudflare 주소(미국 등)라서 한국 방문자도 해외로 잡혔어요.
+const net = require("net");
+const CLOUDFLARE_RANGES = [
+  "173.245.48.0/20", "103.21.244.0/22", "103.22.200.0/22", "103.31.4.0/22", "141.101.64.0/18", "108.162.192.0/18",
+  "190.93.240.0/20", "188.114.96.0/20", "197.234.240.0/22", "198.41.128.0/17", "162.158.0.0/15", "104.16.0.0/13",
+  "104.24.0.0/14", "172.64.0.0/13", "131.0.72.0/22",
+  "2400:cb00::/32", "2606:4700::/32", "2803:f800::/32", "2405:b500::/32", "2405:8100::/32", "2a06:98c0::/29", "2c0f:f248::/32",
+];
+const cloudflare = new net.BlockList();
+for (const r of CLOUDFLARE_RANGES) {
+  const [addr, bits] = r.split("/");
+  cloudflare.addSubnet(addr, Number(bits), addr.includes(":") ? "ipv6" : "ipv4");
+}
+const isCloudflare = (ip) => {
+  ip = String(ip || "").replace(/^::ffff:/, "");
+  try { return cloudflare.check(ip, ip.includes(":") ? "ipv6" : "ipv4"); } catch { return false; }
+};
+app.set("trust proxy", (addr, i) => i === 0 || isCloudflare(addr));
 
 // ── 해외 IP 차단 ─────────────────────────────────────
 // 한국(KR) 외 나라에서 들어오면 403 안내 페이지를 보여줍니다.
@@ -277,22 +296,15 @@ const BLOCKED_HTML = `<!doctype html>
 <p>이 사이트는 대한민국에서만 이용할 수 있어요.<br>해외에서 접속하셨거나 VPN을 쓰고 계시다면 끄고 다시 시도해 주세요.</p>
 <p style="margin-top:12px;font-size:13px;color:#999">This site is only available in South Korea.</p>
 <p style="margin-top:8px;font-size:12px;color:#bbb">확인된 접속 주소: <!--SEEN--></p></div></body></html>`;
-// 방문자 IP 후보를 모두 모읍니다. 사이트 앞에 Cloudflare 같은 프록시가 하나 더 있으면
-// req.ip(맨 오른쪽 주소)가 방문자가 아니라 그 프록시(대부분 미국 등 해외로 잡힘)가 되기 때문이에요.
-// 실제 방문자 주소는 CF-Connecting-IP, X-Real-IP, X-Forwarded-For 앞쪽에 들어 있어요.
-function clientIpCandidates(req) {
-  const list = [req.get("cf-connecting-ip"), req.get("true-client-ip"), req.get("x-real-ip"),
-    ...(req.get("x-forwarded-for") || "").split(","), req.ip];
-  return [...new Set(list.map((ip) => String(ip || "").trim()).filter(Boolean))].slice(0, 10);
-}
 app.use((req, res, next) => {
   if (!GEO_BLOCK) return next();
-  const seen = clientIpCandidates(req).map((ip) => ({ ip, country: countryOf(ip) })).filter((x) => x.country);
-  // 나라를 아는 주소가 하나도 없으면(내부 주소 등) 막지 않고, 하나라도 허용 나라면 통과시켜요.
-  if (!seen.length || seen.some((x) => ALLOWED_COUNTRIES.has(x.country))) return next();
+  // req.ip는 아래 trust proxy 설정으로 Railway·Cloudflare를 건너뛴 실제 방문자 주소예요.
+  // 방문자가 직접 써 넣을 수 있는 앞쪽 주소는 보지 않아서, 가짜 헤더로 우회할 수 없어요.
+  const country = countryOf(req.ip);
+  if (!country || ALLOWED_COUNTRIES.has(country)) return next();
   const isPage = (req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api/");
   if (isPage && ALLOWED_BOT_RE.test(req.get("user-agent") || "")) return next();
-  const summary = seen.map((x) => `${maskIp(x.ip)}(${x.country})`).join(", ");
+  const summary = `${maskIp(req.ip)}(${country})`;
   console.log(`geo block ${req.method} ${req.path} ${summary}`);
   res.set("Cache-Control", "no-store");
   if (req.path.startsWith("/api/")) return res.status(403).json({ error: "해외에서는 이용할 수 없어요. 대한민국에서 접속해 주세요." });
