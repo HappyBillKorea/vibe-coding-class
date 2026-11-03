@@ -183,9 +183,14 @@ const fmtPhone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
 
 // 유입 경로: Referer 헤더, utm_source, 앱 내 브라우저(UA)로 판단합니다.
 const BOT_RE = /bot|crawl|spider|slurp|facebookexternalhit|kakaotalk-scrap|preview|headless|curl|wget/i;
+// 같은 곳을 가리키는 utm_source 값을 하나의 이름으로 묶습니다. (예: ig, ig_web_copy_link → 인스타그램)
+function normalizeSource(s) {
+  if (/^(ig|instagram)([_\-.].*)?$/i.test(s || "")) return "인스타그램";
+  return s;
+}
 function classifySource(req) {
   const utm = String(req.query.utm_source || "").trim().slice(0, 40);
-  if (utm) return utm;
+  if (utm) return normalizeSource(utm);
   const ua = req.get("user-agent") || "";
   if (/KAKAOTALK/i.test(ua)) return "카카오톡";
   if (/Instagram/i.test(ua)) return "인스타그램";
@@ -546,6 +551,7 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
   const selfHost = req.hostname.replace(/^www\./, "");
   const allVisitors = new Set();
   for (const r of rows) {
+    r.source = normalizeSource(r.source); // 예전에 "ig"로 저장된 기록도 함께 묶어 보여줍니다.
     const d = daily[kstDay(r.ts)];
     if (d) { d.views++; d.visitors.add(r.vid); (d.sources[r.source] ||= new Set()).add(r.vid); }
     allVisitors.add(r.vid);
