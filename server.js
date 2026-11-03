@@ -5,7 +5,7 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
 const { sendTelegram, telegramConfigured } = require("./lib/telegram");
-const { lookupRegion, maskIp } = require("./lib/geo");
+const { lookupRegion, maskIp, countryOf } = require("./lib/geo");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -258,6 +258,35 @@ function formatSlot(slot) {
 // ── 앱 ───────────────────────────────────────────────
 const app = express();
 app.set("trust proxy", 1);
+
+// ── 해외 IP 차단 ─────────────────────────────────────
+// 한국(KR) 외 나라에서 들어오면 403 안내 페이지를 보여줍니다.
+// GEO_BLOCK=off 로 끌 수 있고, ALLOWED_COUNTRIES=KR,JP 처럼 허용 나라를 늘릴 수 있어요.
+// 예외: 1) 지역 DB에 없는 주소(Railway 헬스체크 같은 내부 주소, 아주 새로 할당된 대역)는 막지 않아요.
+//       2) 검색엔진(구글·네이버·빙·다음)과 링크 미리보기 봇(카카오톡·인스타·페이스북 등)은 대부분 해외 IP라
+//          막으면 검색 노출과 미리보기가 깨지므로, 페이지 조회(GET)만 허용해요. 신청·인증 같은 API는 그대로 막아요.
+const GEO_BLOCK = !/^(off|false|0|no)$/i.test(process.env.GEO_BLOCK || "on");
+const ALLOWED_COUNTRIES = new Set((process.env.ALLOWED_COUNTRIES || "KR").split(",").map((c) => c.trim().toUpperCase()).filter(Boolean));
+const ALLOWED_BOT_RE = /googlebot|google-inspectiontool|googleother|adsbot-google|mediapartners-google|apis-google|google-site-verification|bingbot|msnbot|yeti|daum|naver|kakaotalk-scrap|kakaostory|facebookexternalhit|facebookcatalog|meta-externalagent|instagram|twitterbot|slackbot|telegrambot|discordbot|linkedinbot|whatsapp|applebot/i;
+const BLOCKED_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>접속이 제한되었어요</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f7f7f8;color:#222;padding:16px;box-sizing:border-box}
+.box{max-width:420px;text-align:center;background:#fff;border-radius:16px;padding:32px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}p{margin:0;line-height:1.6;color:#555;font-size:15px}</style>
+</head><body><div class="box"><h1>접속이 제한되었어요</h1>
+<p>이 사이트는 대한민국에서만 이용할 수 있어요.<br>해외에서 접속하셨거나 VPN을 쓰고 계시다면 끄고 다시 시도해 주세요.</p>
+<p style="margin-top:12px;font-size:13px;color:#999">This site is only available in South Korea.</p></div></body></html>`;
+app.use((req, res, next) => {
+  if (!GEO_BLOCK) return next();
+  const country = countryOf(req.ip);
+  if (!country || ALLOWED_COUNTRIES.has(country)) return next();
+  const isPage = (req.method === "GET" || req.method === "HEAD") && !req.path.startsWith("/api/");
+  if (isPage && ALLOWED_BOT_RE.test(req.get("user-agent") || "")) return next();
+  res.set("Cache-Control", "no-store");
+  if (req.path.startsWith("/api/")) return res.status(403).json({ error: "해외에서는 이용할 수 없어요. 대한민국에서 접속해 주세요." });
+  res.status(403).type("html").send(BLOCKED_HTML);
+});
+
 app.use(express.json({ limit: "10kb" }));
 // Railway 기본 주소로 들어오면 대표 도메인으로 보냅니다(검색엔진에 주소가 둘로 나뉘지 않게). API는 그대로 둡니다.
 app.use((req, res, next) => {
