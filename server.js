@@ -104,6 +104,13 @@ db.exec(`
   if (!cols.includes("city")) db.exec("ALTER TABLE visits ADD COLUMN city TEXT");
   if (!cols.includes("ip")) db.exec("ALTER TABLE visits ADD COLUMN ip TEXT");
 }
+// 2026-11-03 이전 직접 방문 지역 중 "해외(…)"는 Railway CDN 주소로 잘못 잡힌 기록이라 지역 정보를 지웁니다.
+// 방문 기록(방문자 수)은 그대로 두고 지역·IP 칸만 비워요. 이 시각 이후 기록은 건드리지 않아요.
+{
+  const n = db.prepare("UPDATE visits SET region = NULL, city = NULL, ip = NULL WHERE region LIKE '해외(%' AND ts < ?")
+    .run(Date.parse("2026-11-03T09:20:00Z")).changes;
+  if (n) console.log(`잘못 잡힌 해외 지역 기록 ${n}건을 지웠어요.`);
+}
 
 const q = {
   allSlots: db.prepare("SELECT * FROM slots ORDER BY date, start"),
