@@ -5,7 +5,7 @@ const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
 const { sendTelegram, telegramConfigured } = require("./lib/telegram");
-const { lookupRegion, maskIp, countryOf } = require("./lib/geo");
+const { lookupRegion, maskIp, countryOf, cleanIp } = require("./lib/geo");
 
 const PORT = process.env.PORT || 3000;
 const IS_PROD = process.env.NODE_ENV === "production";
@@ -90,6 +90,13 @@ db.exec(`
     referrer TEXT
   );
   CREATE INDEX IF NOT EXISTS visits_ts ON visits (ts);
+  CREATE TABLE IF NOT EXISTS blocked_ips (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    rule TEXT NOT NULL UNIQUE,
+    label TEXT NOT NULL,
+    region TEXT,
+    created_at INTEGER NOT NULL
+  );
   CREATE TABLE IF NOT EXISTS tokens (
     token TEXT PRIMARY KEY,
     phone TEXT NOT NULL,
@@ -103,6 +110,8 @@ db.exec(`
   if (!cols.includes("region")) db.exec("ALTER TABLE visits ADD COLUMN region TEXT");
   if (!cols.includes("city")) db.exec("ALTER TABLE visits ADD COLUMN city TEXT");
   if (!cols.includes("ip")) db.exec("ALTER TABLE visits ADD COLUMN ip TEXT");
+  // 관리자가 "이 IP 차단"을 누를 때 쓰는 전체 IP예요. 화면에는 보여주지 않고 서버 안에서만 씁니다.
+  if (!cols.includes("ip_full")) db.exec("ALTER TABLE visits ADD COLUMN ip_full TEXT");
 }
 // 2026-11-03 이전 직접 방문 지역 중 "해외(…)"는 Railway CDN 주소로 잘못 잡힌 기록이라 지역 정보를 지웁니다.
 // 방문 기록(방문자 수)은 그대로 두고 지역·IP 칸만 비워요. 이 시각 이후 기록은 건드리지 않아요.
@@ -122,8 +131,12 @@ const q = {
     "UPDATE slots SET date = @date, start = @start, end = @end, place = @place, capacity = @capacity, open = @open WHERE id = @id"
   ),
   deleteSlot: db.prepare("DELETE FROM slots WHERE id = ?"),
-  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip) VALUES (?, ?, ?, ?, ?, ?, ?)"),
-  visitsSince: db.prepare("SELECT ts, vid, source, referrer, region, city, ip FROM visits WHERE ts >= ?"),
+  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip, ip_full) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
+  visitsSince: db.prepare("SELECT id, ts, vid, source, referrer, region, city, ip, ip_full FROM visits WHERE ts >= ?"),
+  getVisit: db.prepare("SELECT id, region, city, ip, ip_full FROM visits WHERE id = ?"),
+  listBlocks: db.prepare("SELECT * FROM blocked_ips ORDER BY created_at DESC"),
+  insertBlock: db.prepare("INSERT OR IGNORE INTO blocked_ips (rule, label, region, created_at) VALUES (?, ?, ?, ?)"),
+  deleteBlock: db.prepare("DELETE FROM blocked_ips WHERE id = ?"),
   signupsSince: db.prepare("SELECT created_at FROM signups WHERE created_at >= ?"),
   countBySlot: db.prepare("SELECT slot_id, COUNT(*) AS n FROM signups GROUP BY slot_id"),
   countSlot: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE slot_id = ?"),
@@ -244,7 +257,7 @@ function trackVisit(req, res) {
   const chain = [...(req.get("x-forwarded-for") || "").split(",").map((ip) => ip.trim()).filter(Boolean), req.ip];
   const regionIp = chain.find((ip) => countryOf(ip) === "KR") || req.ip;
   const { region, city } = lookupRegion(regionIp);
-  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null);
+  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null, cleanIp(regionIp) || null);
 }
 
 function kstDay(ts) {
@@ -304,6 +317,45 @@ app.use((req, res, next) => {
   res.set("Cache-Control", "no-store");
   if (req.path.startsWith("/api/")) return res.status(403).json({ error: "해외에서는 이용할 수 없어요. 대한민국에서 접속해 주세요." });
   res.status(403).type("html").send(BLOCKED_HTML.replace("<!--SEEN-->", htmlEsc(summary)));
+});
+
+// ── 관리자가 직접 막은 IP ─────────────────────────────
+// 규칙은 두 가지예요. 전체 IP(예: 211.234.10.5)는 그 주소 하나만, 끝이 "."이나 ":"로 끝나는 대역(예: 211.234.10.)은
+// 그 대역 전체를 막아요. 대역 규칙은 전체 IP가 저장되기 전의 예전 방문 기록을 막을 때만 생겨요.
+// 접속 경로(X-Forwarded-For)에 있는 주소 중 하나라도 걸리면 막습니다. (방문 기록에 남는 주소도 이 경로에서 골라요)
+// 관리자 화면과 관리자 API는 막지 않아요. 실수로 내 주소를 막아도 들어와서 풀 수 있게요.
+let blockRules = [];
+function reloadBlocks() { blockRules = q.listBlocks.all().map((b) => b.rule); }
+reloadBlocks();
+function ipChain(req) {
+  return [...(req.get("x-forwarded-for") || "").split(","), req.ip].map(cleanIp).filter(Boolean);
+}
+function matchesRule(ip, rule) {
+  return /[.:]$/.test(rule) ? ip.startsWith(rule) : ip === rule;
+}
+function blockedBy(req, rules = blockRules) {
+  if (!rules.length) return "";
+  for (const ip of ipChain(req)) {
+    const rule = rules.find((r) => matchesRule(ip, r));
+    if (rule) return rule;
+  }
+  return "";
+}
+const IP_BLOCKED_HTML = `<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>접속이 제한되었어요</title>
+<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;background:#f7f7f8;color:#222;padding:16px;box-sizing:border-box}
+.box{max-width:420px;text-align:center;background:#fff;border-radius:16px;padding:32px 24px;box-shadow:0 2px 12px rgba(0,0,0,.06)}h1{font-size:20px;margin:0 0 12px}p{margin:0;line-height:1.6;color:#555;font-size:15px}</style>
+</head><body><div class="box"><h1>접속이 제한되었어요</h1>
+<p>이 주소에서는 사이트를 이용할 수 없어요.</p></div></body></html>`;
+app.use((req, res, next) => {
+  if (!blockRules.length || /^\/(admin(\.html)?\/?$|api\/admin\/)/.test(req.path)) return next();
+  const rule = blockedBy(req);
+  if (!rule) return next();
+  console.log(`ip block ${req.method} ${req.path} ${maskIp(req.ip)} (규칙 ${maskIp(rule) || rule})`);
+  res.set("Cache-Control", "no-store");
+  if (req.path.startsWith("/api/")) return res.status(403).json({ error: "이용이 제한된 주소예요." });
+  res.status(403).type("html").send(IP_BLOCKED_HTML);
 });
 
 app.use(express.json({ limit: "10kb" }));
@@ -627,7 +679,15 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       e.views++;
       e.visitors.add(r.vid);
       if (r.city) (e.cities[r.city] ||= new Set()).add(r.vid);
-      if (r.region) directRecent.push({ ts: r.ts, region: r.region, city: r.city || "", ip: r.ip || "" });
+      if (r.region) {
+        const rule = blockRuleForVisit(r);
+        directRecent.push({
+          id: r.id, ts: r.ts, region: r.region, city: r.city || "", ip: r.ip || "",
+          // exact: 전체 IP가 있어 그 주소 하나만 막을 수 있음 / range: 예전 기록이라 끝자리가 가려진 대역만 막을 수 있음
+          blockKind: !rule ? "" : r.ip_full ? "exact" : "range",
+          blocked: Boolean(rule) && blockRules.some((b) => r.ip_full ? matchesRule(r.ip_full, b) : b === rule),
+        });
+      }
     }
     if (r.referrer) {
       try {
@@ -672,6 +732,35 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       .sort((a, b) => b.visitors - a.visitors),
     directRecent: directRecent.sort((a, b) => b.ts - a.ts).slice(0, 30),
   });
+});
+
+// 방문 기록 하나로 차단 규칙을 만듭니다. 전체 IP가 있으면 그 주소, 없으면(예전 기록) 가려진 대역(211.234.10.*)이에요.
+function blockRuleForVisit(v) {
+  if (v.ip_full) return v.ip_full;
+  if (v.ip && v.ip.endsWith("*")) return v.ip.slice(0, -1);
+  return "";
+}
+
+app.get("/api/admin/blocks", requireAdmin, (req, res) => {
+  res.json({ blocks: q.listBlocks.all().map((b) => ({ id: b.id, label: b.label, region: b.region || "", range: /[.:]$/.test(b.rule), createdAt: b.created_at })) });
+});
+
+app.post("/api/admin/blocks", requireAdmin, (req, res) => {
+  const v = q.getVisit.get(Number(req.body && req.body.visitId));
+  const rule = v ? blockRuleForVisit(v) : "";
+  if (!rule) return res.status(400).json({ error: "이 방문 기록에는 막을 IP가 없어요." });
+  if (blockedBy(req, [rule])) return res.status(400).json({ error: "지금 관리자 화면을 보고 계신 주소라서 막지 않았어요." });
+  const label = v.ip || maskIp(rule) || rule;
+  const region = [v.region, v.city].filter(Boolean).join(" ");
+  q.insertBlock.run(rule, label, region || null, Date.now());
+  reloadBlocks();
+  res.json({ success: true });
+});
+
+app.delete("/api/admin/blocks/:id", requireAdmin, (req, res) => {
+  q.deleteBlock.run(Number(req.params.id));
+  reloadBlocks();
+  res.json({ success: true });
 });
 
 function readSlotBody(body) {
