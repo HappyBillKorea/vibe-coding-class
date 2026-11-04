@@ -18,7 +18,7 @@ Claude Code로 배우는 바이브 코딩 입문 오프라인 클래스(2시간)
 | `SOLAPI_API_SECRET` | 솔라피 API 시크릿 |
 | `SOLAPI_SENDER` | 솔라피에 등록된 발신번호 |
 | `TELEGRAM_BOT_TOKEN` | (선택) 새 신청 알림을 텔레그램으로 받을 때 쓰는 봇 토큰 (@BotFather에서 발급, 저장소에는 넣지 마세요) |
-| `TELEGRAM_CHAT_ID` | (선택) 텔레그램 알림을 받을 채팅 ID. 토큰과 둘 다 있어야 보내요 |
+| `TELEGRAM_CHAT_ID` | (선택) 텔레그램 알림을 받을 채팅 ID. 토큰과 둘 다 있어야 보내요. 이 채팅에서 봇에게 `통계`라고 보내면 오늘 유입 통계를 답장해요 |
 | `INFO_URL` | (선택) 신청 완료 문자에 넣는 안내 페이지 주소. 기본값 `aieo.kr/info` |
 | `SITE_URL` | (선택) 대표 주소. 기본값 `https://aieo.kr`. Railway 기본 주소로 들어오면 이 주소로 넘겨요 |
 | `GOOGLE_SITE_VERIFICATION` | (선택) 구글 서치 콘솔 HTML 태그의 content 값 |

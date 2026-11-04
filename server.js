@@ -4,7 +4,7 @@ const crypto = require("crypto");
 const express = require("express");
 const Database = require("better-sqlite3");
 const { sendSms, smsConfigured, getBalance } = require("./lib/sms");
-const { sendTelegram, telegramConfigured } = require("./lib/telegram");
+const { sendTelegram, telegramConfigured, startTelegramCommands } = require("./lib/telegram");
 const { lookupRegion, maskIp, countryOf, cleanIp } = require("./lib/geo");
 
 const PORT = process.env.PORT || 3000;
@@ -885,6 +885,55 @@ app.delete("/api/admin/signups/:id", requireAdmin, (req, res) => {
 
 app.get("/api/admin/storage", requireAdmin, (req, res) => {
   res.json({ dataDir: DATA_DIR, volume: VOLUME_PATH, ignoredDataDir: IGNORED_DATA_DIR ? requestedDir : "", persistent: !DATA_NOT_PERSISTENT });
+});
+
+// ── 텔레그램 명령 ────────────────────────────────────
+// 관리자 채팅에서 봇에게 "통계"라고 보내면 오늘(한국 시간) 유입 통계를 답장으로 보내요.
+function todayStatsText() {
+  const now = Date.now();
+  const todayKey = kstDay(now);
+  const since = new Date(`${todayKey}T00:00:00+09:00`).getTime();
+  const rows = q.visitsSince.all(since);
+  const visitors = new Set();
+  const sources = {};
+  const referrers = {};
+  for (const r of rows) {
+    const name = normalizeSource(r.source);
+    visitors.add(r.vid);
+    (sources[name] ||= new Set()).add(r.vid);
+    if (r.referrer) {
+      try {
+        const u = new URL(r.referrer);
+        const host = u.hostname.replace(/^www\./, "");
+        if (host !== new URL(SITE_URL).hostname.replace(/^www\./, "") && !host.endsWith(".up.railway.app")) {
+          const k = host + u.pathname.slice(0, 40);
+          referrers[k] = (referrers[k] || 0) + 1;
+        }
+      } catch {}
+    }
+  }
+  const signups = q.signupsSince.all(since).length;
+  const time = new Date(now + 9 * 3600 * 1000).toISOString().slice(11, 16);
+  const lines = [`📊 오늘(${todayKey.slice(5).replace("-", "/")}) 유입 통계 · ${time} 기준`, "",
+    `방문자 ${visitors.size}명 · 조회 ${rows.length}회 · 신청 ${signups}건`];
+  const srcList = Object.entries(sources).map(([k, v]) => [k, v.size]).sort((a, b) => b[1] - a[1]);
+  if (srcList.length) {
+    lines.push("", "[유입 경로] (방문자 수)");
+    for (const [k, n] of srcList) lines.push(`· ${k}: ${n}명 (${Math.round((n / visitors.size) * 100)}%)`);
+  } else {
+    lines.push("", "아직 오늘 방문 기록이 없어요.");
+  }
+  const refList = Object.entries(referrers).sort((a, b) => b[1] - a[1]).slice(0, 10);
+  if (refList.length) {
+    lines.push("", "[들어온 주소]");
+    for (const [k, n] of refList) lines.push(`· ${k} ${n}회`);
+  }
+  return lines.join("\n");
+}
+
+startTelegramCommands(async (text) => {
+  const cmd = text.replace(/^\//, "").replace(/@\w+$/, "").trim();
+  if (cmd === "통계" || cmd.toLowerCase() === "stats") await sendTelegram(todayStatsText());
 });
 
 app.listen(PORT, () => {
