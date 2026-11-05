@@ -112,6 +112,10 @@ db.exec(`
   if (!cols.includes("ip")) db.exec("ALTER TABLE visits ADD COLUMN ip TEXT");
   // 관리자가 "이 IP 차단"을 누를 때 쓰는 전체 IP예요. 화면에는 보여주지 않고 서버 안에서만 씁니다.
   if (!cols.includes("ip_full")) db.exec("ALTER TABLE visits ADD COLUMN ip_full TEXT");
+  // 체류 시간: 페이지를 열 때마다 받는 임시 표(pv)와, 화면을 보고 있던 시간(dwell, 밀리초)이에요.
+  if (!cols.includes("pv")) db.exec("ALTER TABLE visits ADD COLUMN pv TEXT");
+  if (!cols.includes("dwell")) db.exec("ALTER TABLE visits ADD COLUMN dwell INTEGER");
+  db.exec("CREATE INDEX IF NOT EXISTS visits_pv ON visits (pv)");
 }
 // 2026-11-03 이전 직접 방문 지역 중 "해외(…)"는 Railway CDN 주소로 잘못 잡힌 기록이라 지역 정보를 지웁니다.
 // 방문 기록(방문자 수)은 그대로 두고 지역·IP 칸만 비워요. 이 시각 이후 기록은 건드리지 않아요.
@@ -131,8 +135,10 @@ const q = {
     "UPDATE slots SET date = @date, start = @start, end = @end, place = @place, capacity = @capacity, open = @open WHERE id = @id"
   ),
   deleteSlot: db.prepare("DELETE FROM slots WHERE id = ?"),
-  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip, ip_full) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"),
-  visitsSince: db.prepare("SELECT id, ts, vid, source, referrer, region, city, ip, ip_full FROM visits WHERE ts >= ?"),
+  insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip, ip_full, pv) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
+  visitsSince: db.prepare("SELECT id, ts, vid, source, referrer, region, city, ip, ip_full, dwell FROM visits WHERE ts >= ?"),
+  getVisitByPv: db.prepare("SELECT id, ts, dwell FROM visits WHERE pv = ?"),
+  setDwell: db.prepare("UPDATE visits SET dwell = ? WHERE id = ?"),
   getVisit: db.prepare("SELECT id, region, city, ip, ip_full FROM visits WHERE id = ?"),
   listBlocks: db.prepare("SELECT * FROM blocked_ips ORDER BY created_at DESC"),
   insertBlock: db.prepare("INSERT OR IGNORE INTO blocked_ips (rule, label, region, created_at) VALUES (?, ?, ?, ?)"),
@@ -242,7 +248,7 @@ function classifySource(req) {
 }
 
 function trackVisit(req, res) {
-  if (BOT_RE.test(req.get("user-agent") || "")) return;
+  if (BOT_RE.test(req.get("user-agent") || "")) return "";
   const cookies = Object.fromEntries((req.get("cookie") || "").split(/;\s*/).filter(Boolean)
     .map((c) => { const i = c.indexOf("="); return [c.slice(0, i), c.slice(i + 1)]; }));
   let vid = /^[a-f0-9]{24}$/.test(cookies.vid || "") ? cookies.vid : null;
@@ -257,7 +263,9 @@ function trackVisit(req, res) {
   const chain = [...(req.get("x-forwarded-for") || "").split(",").map((ip) => ip.trim()).filter(Boolean), req.ip];
   const regionIp = chain.find((ip) => countryOf(ip) === "KR") || req.ip;
   const { region, city } = lookupRegion(regionIp);
-  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null, cleanIp(regionIp) || null);
+  const pv = crypto.randomBytes(12).toString("hex");
+  q.insertVisit.run(Date.now(), vid, classifySource(req), ref || null, region, city || null, maskIp(regionIp) || null, cleanIp(regionIp) || null, pv);
+  return pv;
 }
 
 function kstDay(ts) {
@@ -419,7 +427,8 @@ function courseJsonLd() {
 // 카카오톡·페이스북 등은 미리보기 이미지 주소를 절대 경로로 요구해서, 접속한 도메인을 붙여 내려줍니다.
 const indexHtml = fs.readFileSync(path.join(__dirname, "public", "index.html"), "utf8");
 app.get(["/", "/index.html"], (req, res) => {
-  try { trackVisit(req, res); } catch (e) { console.error("visit log error", e); }
+  let pv = "";
+  try { pv = trackVisit(req, res) || ""; } catch (e) { console.error("visit log error", e); }
   const origin = `${req.protocol}://${req.get("host")}`;
   const verify =
     (GOOGLE_SITE_VERIFICATION ? `<meta name="google-site-verification" content="${htmlEsc(GOOGLE_SITE_VERIFICATION)}">\n` : "") +
@@ -428,7 +437,24 @@ app.get(["/", "/index.html"], (req, res) => {
     .replaceAll('content="/og.png?v=2"', `content="${origin}/og.png?v=2"`)
     .replace("<!--SEO_EXTRA-->", verify + courseJsonLd())
     .replace("<!--SLOTS_SSR-->", slotsSsr())
-    .replace("</head>", `<meta name="build-id" content="${BUILD_ID}">\n</head>`));
+    .replace("</head>", `<meta name="build-id" content="${BUILD_ID}">\n` + (pv ? `<meta name="pv" content="${pv}">\n` : "") + "</head>"));
+});
+
+// 체류 시간: 랜딩 페이지가 화면에서 사라질 때(탭 전환·닫기·앱 전환) 지금까지 화면을 보고 있던 시간을 보내요.
+// 같은 방문에서 여러 번 올 수 있어서 가장 긴 값만 남기고, 페이지를 연 뒤 실제로 지난 시간보다 길거나 1시간을 넘으면 잘라요.
+const DWELL_MAX = 60 * 60 * 1000;
+app.post("/api/dwell", express.text({ type: "*/*", limit: "1kb" }), (req, res) => {
+  let body = req.body;
+  if (typeof body === "string") { try { body = JSON.parse(body); } catch { body = {}; } }
+  const pv = String((body && body.pv) || "");
+  const ms = Math.round(Number(body && body.ms));
+  if (!/^[a-f0-9]{24}$/.test(pv) || !Number.isFinite(ms) || ms <= 0) return res.status(204).end();
+  const v = q.getVisitByPv.get(pv);
+  if (v) {
+    const capped = Math.min(ms, DWELL_MAX, Date.now() - v.ts + 5000);
+    if (capped > (v.dwell || 0)) q.setDwell.run(capped, v.id);
+  }
+  res.status(204).end();
 });
 app.use(express.static(path.join(__dirname, "public"), { extensions: ["html"] })); // /info → info.html
 
@@ -647,6 +673,20 @@ function requireAdmin(req, res, next) {
   next();
 }
 
+// 체류 시간 묶음: 측정된 방문 수, 평균, 중앙값, 10초 안에 나간 비율이에요. (체류 시간 기능 전 기록은 빠져요)
+function dwellSummary(list) {
+  if (!list.length) return { n: 0, avg: 0, median: 0, short: 0 };
+  const a = [...list].sort((x, y) => x - y);
+  const mid = a.length >> 1;
+  return {
+    n: a.length,
+    avg: Math.round(a.reduce((m, x) => m + x, 0) / a.length),
+    median: a.length % 2 ? a[mid] : Math.round((a[mid - 1] + a[mid]) / 2),
+    short: a.filter((x) => x < 10000).length / a.length,
+  };
+}
+const fmtDwell = (ms) => { const t = Math.round(ms / 1000); return t >= 60 ? `${Math.floor(t / 60)}분 ${t % 60}초` : `${t}초`; };
+
 app.get("/api/admin/stats", requireAdmin, (req, res) => {
   const days = Math.min(90, Math.max(1, Number(req.query.days) || 14));
   const now = Date.now();
@@ -662,6 +702,7 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
   const referrers = {};
   const selfHost = req.hostname.replace(/^www\./, "");
   const allVisitors = new Set();
+  const allDwell = [];
   // 직접 방문(주소 직접 입력·즐겨찾기 등)의 지역별 방문자와 최근 기록
   const directRegions = {};
   const directRecent = [];
@@ -670,9 +711,10 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
     const d = daily[kstDay(r.ts)];
     if (d) { d.views++; d.visitors.add(r.vid); (d.sources[r.source] ||= new Set()).add(r.vid); }
     allVisitors.add(r.vid);
-    sources[r.source] = sources[r.source] || { views: 0, visitors: new Set() };
+    sources[r.source] = sources[r.source] || { views: 0, visitors: new Set(), dwell: [] };
     sources[r.source].views++;
     sources[r.source].visitors.add(r.vid);
+    if (r.dwell > 0) { sources[r.source].dwell.push(r.dwell); allDwell.push(r.dwell); }
     if (r.source === "직접 방문") {
       const name = r.region || "기록 전";
       const e = (directRegions[name] ||= { views: 0, visitors: new Set(), cities: {} });
@@ -714,13 +756,14 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       views: rows.length,
       visitors: allVisitors.size,
       signups: Object.values(daily).reduce((n, d) => n + d.signups, 0),
+      dwell: dwellSummary(allDwell),
     },
     daily: Object.entries(daily).map(([date, d]) => ({
       date, views: d.views, visitors: d.visitors.size, signups: d.signups,
       sources: Object.fromEntries(Object.entries(d.sources).map(([k, v]) => [k, v.size])),
     })),
     sources: Object.entries(sources)
-      .map(([name, v]) => ({ name, views: v.views, visitors: v.visitors.size }))
+      .map(([name, v]) => ({ name, views: v.views, visitors: v.visitors.size, dwell: dwellSummary(v.dwell) }))
       .sort((a, b) => b.visitors - a.visitors),
     // 최근에 들어온 주소가 위로 옵니다. 횟수 순으로만 정렬하면 예전에 많이 들어온 주소가 계속 자리를 차지해서 새 유입이 안 보였어요.
     referrers: Object.entries(referrers).map(([url, e]) => ({ url, n: e.n, last: e.last })).sort((a, b) => b.last - a.last).slice(0, 30),
@@ -897,10 +940,12 @@ function todayStatsText() {
   const visitors = new Set();
   const sources = {};
   const referrers = {};
+  const dwell = [];
   for (const r of rows) {
     const name = normalizeSource(r.source);
     visitors.add(r.vid);
     (sources[name] ||= new Set()).add(r.vid);
+    if (r.dwell > 0) dwell.push(r.dwell);
     if (r.referrer) {
       try {
         const u = new URL(r.referrer);
@@ -916,6 +961,8 @@ function todayStatsText() {
   const time = new Date(now + 9 * 3600 * 1000).toISOString().slice(11, 16);
   const lines = [`📊 오늘(${todayKey.slice(5).replace("-", "/")}) 유입 통계 · ${time} 기준`, "",
     `방문자 ${visitors.size}명 · 조회 ${rows.length}회 · 신청 ${signups}건`];
+  const dw = dwellSummary(dwell);
+  if (dw.n) lines.push(`평균 체류 ${fmtDwell(dw.avg)} · 중앙값 ${fmtDwell(dw.median)} (${dw.n}회 측정)`);
   const srcList = Object.entries(sources).map(([k, v]) => [k, v.size]).sort((a, b) => b[1] - a[1]);
   if (srcList.length) {
     lines.push("", "[유입 경로] (방문자 수)");

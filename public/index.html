@@ -661,6 +661,22 @@
 </dialog>
 
 <script>
+  // ── 체류 시간: 화면을 실제로 보고 있던 시간만 세서, 화면에서 사라질 때 서버로 보내요 ──
+  (() => {
+    const pv = document.querySelector('meta[name="pv"]')?.content;
+    if (!pv || !navigator.sendBeacon) return;
+    let total = 0, since = document.visibilityState === "visible" ? performance.now() : 0;
+    const send = () => {
+      if (since) { total += performance.now() - since; since = 0; }
+      if (total > 0) navigator.sendBeacon("/api/dwell", JSON.stringify({ pv, ms: Math.round(total) }));
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") send();
+      else if (!since) since = performance.now();
+    });
+    window.addEventListener("pagehide", send);
+  })();
+
   // ── 일정 목록과 신청 ──
   const $ = (sel) => document.querySelector(sel);
   const slotsEl = $("#slots");
