@@ -122,6 +122,8 @@
   .lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 28px; }
   .hero-meta { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 28px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .95rem; }
   .hero-meta b { color: var(--ink); }
+  .hero-next { text-decoration: none; }
+  .hero-next .hero-left { color: var(--accent); font-weight: 700; }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
   .terminal {
@@ -373,8 +375,8 @@
           <a href="#curriculum" class="btn ghost">커리큘럼 보기</a>
         </div>
         <ul class="hero-meta">
-          <li>📅 <b>매달 여러 회차</b> 중 선택</li>
-          <li>📍 <b>강남</b> (신청 시 문자 안내)</li>
+          <li id="heroNext">📅 <b>매달 여러 회차</b> 중 선택</li>
+          <li>📍 <b>9호선 봉은사역</b> 도보 3분</li>
           <li>👥 <b>회차당 5명</b> 소수 정예</li>
         </ul>
       </div>
@@ -595,7 +597,7 @@
             <div class="price">30,000원</div>
             <div class="seats">당일 현장 결제 · 회차당 최대 5명</div>
             <dl class="facts">
-              <dt>장소</dt><dd>강남 (자세한 위치는 신청 시 문자로 안내)</dd>
+              <dt>장소</dt><dd>강남 · 9호선 봉은사역 도보 3분 (자세한 위치는 신청 시 문자로 안내)</dd>
               <dt>대상</dt><dd>코딩 경험이 없는 입문자 누구나</dd>
               <dt>준비물</dt><dd>노트북 (Mac 또는 Windows), 충전기, 클로드 코드를 쓰기 위한 Claude Pro 결제</dd>
             </dl>
@@ -733,11 +735,26 @@
     return `${Number(m)}월 ${Number(d)}일 (${day}) ${s.start} – ${s.end}`;
   }
 
+  // 첫 화면에 가장 가까운 신청 가능한 회차와 남은 자리를 보여줍니다.
+  function showHeroNext(slots) {
+    const el = $("#heroNext");
+    const open = slots.filter((s) => !s.closed && s.remaining > 0);
+    if (!open.length) return;
+    const s = open[0];
+    const [, m, d] = s.date.split("-");
+    const day = days[new Date(s.date + "T12:00:00Z").getUTCDay()];
+    el.innerHTML = `📅 <a href="#apply" class="hero-next"><b></b> <span class="hero-left"></span></a>`;
+    el.querySelector("b").textContent = `${Number(m)}/${Number(d)} (${day}) ${s.start}`;
+    el.querySelector(".hero-left").textContent = `${s.remaining}자리 남음` + (open.length > 1 ? ` · 외 ${open.length - 1}회차` : "");
+    el.querySelector("a").addEventListener("click", (e) => { e.preventDefault(); openDialog(s); });
+  }
+
   async function loadSlots() {
     try {
       const res = await fetch("/api/slots");
       const { slots } = await res.json();
       if (!slots.length) { slotsEl.innerHTML = '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>'; return; }
+      showHeroNext(slots);
       slotsEl.innerHTML = "";
       for (const s of slots) {
         const full = s.remaining === 0, off = full || s.closed;
