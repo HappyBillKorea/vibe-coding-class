@@ -1,4 +1,10 @@
 node_modules
 data
 .env
+.env.*
 .git
+.gitignore
+.dockerignore
+Dockerfile
+README.md
+*.log
