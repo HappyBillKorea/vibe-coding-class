@@ -24,6 +24,7 @@ Claude Code로 배우는 바이브 코딩 입문 오프라인 클래스(2시간)
 | `GOOGLE_SITE_VERIFICATION` | (선택) 구글 서치 콘솔 HTML 태그의 content 값 |
 | `NAVER_SITE_VERIFICATION` | (선택) 네이버 서치어드바이저 HTML 태그의 content 값 |
 | `ADMIN_KEY` | 관리자 페이지 비밀번호 (저장소에는 넣지 마세요) |
+| `SIGNUP_COUNT_MIN` | (선택) 첫 화면에 "벌써 ○○명이 신청했어요"를 보여줄 최소 누적 신청자 수. 기본값 `10`. `0`이면 항상 보여요 |
 | `GEO_BLOCK` | (선택) 해외 IP 차단. 기본값 켜짐, `off` 로 끄기. 해외 출장 중 관리자 페이지를 써야 할 때 잠시 끄세요 |
 | `ALLOWED_COUNTRIES` | (선택) 접속을 허용할 나라 코드. 기본값 `KR`. 예: `KR,JP` |
 | `DATA_DIR` | 넣지 마세요. Railway 볼륨이 있으면 자동으로 볼륨에 저장하고, 볼륨 밖을 가리키는 값은 무시해요 |
