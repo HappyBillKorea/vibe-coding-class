@@ -122,6 +122,10 @@
   .lead { font-size: 1.15rem; color: var(--muted); margin: 0 0 28px; }
   .hero-meta { display: flex; flex-wrap: wrap; gap: 10px 20px; margin: 28px 0 0; padding: 0; list-style: none; color: var(--muted); font-size: .95rem; }
   .hero-meta b { color: var(--ink); }
+  .hero-next { text-decoration: none; }
+  .hero-next .hero-left { color: var(--accent); font-weight: 700; }
+  .social-proof { margin: 16px 0 0; font-size: .95rem; color: var(--muted); }
+  .social-proof b { color: var(--accent); font-weight: 800; }
   .cta-row { display: flex; flex-wrap: wrap; gap: 12px; }
 
   .terminal {
@@ -329,6 +333,25 @@
     .slot-left { text-align: left; min-width: 0; flex: 1; }
   }
   @media (max-width: 400px) { .wrap { padding: 0 16px; } }
+
+  /* 미니 게임 데모: 코드 불꽃놀이 */
+  .game { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .game-prompt { background: var(--term-bg); color: var(--term-ink); border-radius: 12px; padding: 14px 16px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .85rem; margin: 0 0 16px; white-space: pre-wrap; }
+  .game-prompt .p { color: var(--accent); }
+  .game-prompt .g { color: var(--term-green); }
+  .game-note { color: var(--muted); margin: 0; font-size: .95rem; }
+  .board { background: #07060c; border-radius: 18px; padding: 12px; box-shadow: 0 20px 50px rgba(0,0,0,.25), 0 0 0 1px #221d33 inset; color: #f2ede6; user-select: none; -webkit-user-select: none; }
+  .board-hud { display: flex; justify-content: space-between; align-items: baseline; font-family: "JetBrains Mono", monospace; font-size: .9rem; padding: 2px 6px 10px; color: #8d86a8; }
+  .board-hud b { color: #fff; }
+  #gCombo { color: #ff4fd8; font-weight: 700; min-width: 4.5em; text-align: center; transition: transform .1s; }
+  .stage { position: relative; aspect-ratio: 1; border-radius: 12px; overflow: hidden; background: radial-gradient(120% 90% at 50% 110%, #2a1450 0%, #0d0a1a 55%, #07060c 100%); touch-action: manipulation; }
+  .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; cursor: crosshair; }
+  .board-overlay { position: absolute; inset: 0; background: rgba(7,6,12,.82); backdrop-filter: blur(2px); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 16px; z-index: 2; }
+  .board-overlay h3 { margin: 0; font-size: 1.3rem; color: #fff; text-shadow: 0 0 18px #ff4fd8; }
+  .board-overlay p { margin: 0; color: #b9b2d4; font-size: .92rem; }
+  .board-overlay .btn { width: 100%; max-width: 260px; }
+  .board-overlay .btn.ghost { color: #f2ede6; border-color: #3b3452; }
+  @media (max-width: 820px) { .game { grid-template-columns: 1fr; gap: 24px; } }
   @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } .btn { transition: none; } }
 </style>
 </head>
@@ -353,9 +376,10 @@
           <a href="#apply" class="btn js-apply">지금 신청하기 →</a>
           <a href="#curriculum" class="btn ghost">커리큘럼 보기</a>
         </div>
+        <!--SIGNUP_COUNT-->
         <ul class="hero-meta">
-          <li>📅 <b>매달 여러 회차</b> 중 선택</li>
-          <li>📍 <b>강남</b> (신청 시 문자 안내)</li>
+          <li id="heroNext">📅 <b>매달 여러 회차</b> 중 선택</li>
+          <li>📍 <b>9호선 봉은사역</b> 도보 3분</li>
           <li>👥 <b>회차당 5명</b> 소수 정예</li>
         </ul>
       </div>
@@ -456,6 +480,29 @@
     </div>
   </section>
 
+  <!-- MINI GAME: 수업 결과물 데모 -->
+  <section id="demo">
+    <div class="wrap game">
+      <div>
+        <h2>이 게임도 말로 만들었어요</h2>
+        <p class="sub" style="margin-bottom:20px">코드를 한 줄도 직접 쓰지 않고, Claude Code에게 이렇게 부탁해서 만든 미니 게임이에요. 10초 동안 떠오르는 코드를 터뜨려 보세요.</p>
+        <div class="game-prompt"><span class="p">&gt; </span>떠오르는 코드 조각을 터치하면 네온 불꽃으로 터지는 10초 게임 만들어줘. 연속으로 맞히면 콤보가 쌓이고 폭발도 커지게!
+<span class="g">✓ 게임 완성. 브라우저에서 확인해 보세요!</span></div>
+        <p class="game-note">수업에서는 이런 결과물을 2시간 안에 직접 만들고 링크로 공유까지 해 봅니다.</p>
+      </div>
+      <div class="board">
+        <div class="board-hud"><span>점수 <b id="gScore">0</b></span><span id="gCombo"></span><span>남은 시간 <b id="gTime">10</b>초</span></div>
+        <div class="stage" id="stage">
+          <canvas id="fx" aria-label="코드 불꽃놀이 게임 화면"></canvas>
+          <div class="board-overlay" id="gOverlay">
+            <h3>🎆 코드 불꽃놀이</h3>
+            <p>떠오르는 코드를 터치해서 터뜨리세요.<br>연속으로 맞히면 콤보! 폭발이 점점 커져요.</p>
+            <button type="button" class="btn" id="gStart">게임 시작</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
   <!-- INSTRUCTOR -->
   <section>
     <div class="wrap">
@@ -553,7 +600,7 @@
             <div class="price">30,000원</div>
             <div class="seats">당일 현장 결제 · 회차당 최대 5명</div>
             <dl class="facts">
-              <dt>장소</dt><dd>강남 (자세한 위치는 신청 시 문자로 안내)</dd>
+              <dt>장소</dt><dd>강남 · 9호선 봉은사역 도보 3분 (자세한 위치는 신청 시 문자로 안내)</dd>
               <dt>대상</dt><dd>코딩 경험이 없는 입문자 누구나</dd>
               <dt>준비물</dt><dd>노트북 (Mac 또는 Windows), 충전기, 클로드 코드를 쓰기 위한 Claude Pro 결제</dd>
             </dl>
@@ -661,6 +708,22 @@
 </dialog>
 
 <script>
+  // ── 체류 시간: 화면을 실제로 보고 있던 시간만 세서, 화면에서 사라질 때 서버로 보내요 ──
+  (() => {
+    const pv = document.querySelector('meta[name="pv"]')?.content;
+    if (!pv || !navigator.sendBeacon) return;
+    let total = 0, since = document.visibilityState === "visible" ? performance.now() : 0;
+    const send = () => {
+      if (since) { total += performance.now() - since; since = 0; }
+      if (total > 0) navigator.sendBeacon("/api/dwell", JSON.stringify({ pv, ms: Math.round(total) }));
+    };
+    document.addEventListener("visibilitychange", () => {
+      if (document.visibilityState === "hidden") send();
+      else if (!since) since = performance.now();
+    });
+    window.addEventListener("pagehide", send);
+  })();
+
   // ── 일정 목록과 신청 ──
   const $ = (sel) => document.querySelector(sel);
   const slotsEl = $("#slots");
@@ -675,11 +738,26 @@
     return `${Number(m)}월 ${Number(d)}일 (${day}) ${s.start} – ${s.end}`;
   }
 
+  // 첫 화면에 가장 가까운 신청 가능한 회차와 남은 자리를 보여줍니다.
+  function showHeroNext(slots) {
+    const el = $("#heroNext");
+    const open = slots.filter((s) => !s.closed && s.remaining > 0);
+    if (!open.length) return;
+    const s = open[0];
+    const [, m, d] = s.date.split("-");
+    const day = days[new Date(s.date + "T12:00:00Z").getUTCDay()];
+    el.innerHTML = `📅 <a href="#apply" class="hero-next"><b></b> <span class="hero-left"></span></a>`;
+    el.querySelector("b").textContent = `${Number(m)}/${Number(d)} (${day}) ${s.start}`;
+    el.querySelector(".hero-left").textContent = `${s.remaining}자리 남음` + (open.length > 1 ? ` · 외 ${open.length - 1}회차` : "");
+    el.querySelector("a").addEventListener("click", (e) => { e.preventDefault(); openDialog(s); });
+  }
+
   async function loadSlots() {
     try {
       const res = await fetch("/api/slots");
       const { slots } = await res.json();
       if (!slots.length) { slotsEl.innerHTML = '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>'; return; }
+      showHeroNext(slots);
       slotsEl.innerHTML = "";
       for (const s of slots) {
         const full = s.remaining === 0, off = full || s.closed;
@@ -781,6 +859,165 @@
 
   loadSlots();
 
+  // ── 미니 게임: 코드 불꽃놀이 (수업 결과물 데모) ──
+  (() => {
+    const stage = document.getElementById("stage"), cv = document.getElementById("fx"), ctx = cv.getContext("2d");
+    const overlay = document.getElementById("gOverlay");
+    const scoreEl = document.getElementById("gScore"), timeEl = document.getElementById("gTime"), comboEl = document.getElementById("gCombo");
+    const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const SNIPPETS = ["<div>", "fn()", "{ }", "css", "</a>", "for", "let x", "api", "=>", "if", "npm", "git", "<h1>", "[ ]", "deploy"];
+    const HUES = [320, 190, 50, 140, 270, 15];
+    const GAME_MS = 10000;
+    let W = 0, H = 0, dpr = 1;
+    let items = [], sparks = [], rings = [], texts = [];
+    let score = 0, combo = 0, lastHit = 0, endAt = 0, nextSpawn = 0, running = false, raf = 0, shake = 0, last = 0;
+
+    function resize() {
+      const r = stage.getBoundingClientRect();
+      dpr = Math.min(window.devicePixelRatio || 1, 2);
+      W = r.width; H = r.height;
+      cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    }
+    window.addEventListener("resize", resize); resize();
+
+    function spawn(now) {
+      const gold = Math.random() < 0.1;
+      const progress = Math.min(1, 1 - (endAt - now) / GAME_MS);
+      items.push({
+        x: W * (0.12 + Math.random() * 0.76), y: H + 24,
+        vy: -(H * (0.28 + Math.random() * 0.14 + progress * 0.18)), // 갈수록 빨라져요
+        vx: (Math.random() - 0.5) * W * 0.08,
+        text: gold ? "✨vibe" : SNIPPETS[Math.floor(Math.random() * SNIPPETS.length)],
+        hue: gold ? 48 : HUES[Math.floor(Math.random() * HUES.length)], gold,
+        wob: Math.random() * 6.28
+      });
+    }
+
+    function burst(x, y, hue, power) {
+      const n = reduce ? 14 : Math.min(26 + power * 10, 90);
+      for (let i = 0; i < n; i++) {
+        const a = Math.random() * Math.PI * 2, sp = (60 + Math.random() * 140) * (1 + power * 0.18);
+        sparks.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, life: 1, decay: 0.9 + Math.random() * 0.7, hue: hue + (Math.random() * 40 - 20), size: 1.5 + Math.random() * 2.2 });
+      }
+      rings.push({ x, y, r: 6, max: 40 + power * 14, life: 1, hue });
+      if (power >= 4 && !reduce) shake = Math.min(10, 3 + power);
+    }
+
+    function hitTest(px, py) {
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        if (Math.abs(px - it.x) < 46 && Math.abs(py - it.y) < 30) return i;
+      }
+      return -1;
+    }
+
+    stage.addEventListener("pointerdown", (e) => {
+      if (!running) return;
+      const r = cv.getBoundingClientRect();
+      const px = e.clientX - r.left, py = e.clientY - r.top;
+      const i = hitTest(px, py);
+      const now = performance.now();
+      if (i < 0) { combo = 0; comboEl.textContent = ""; texts.push({ x: px, y: py, t: "miss", life: 1, hue: 0, size: 13 }); return; }
+      e.preventDefault();
+      const it = items.splice(i, 1)[0];
+      combo = now - lastHit < 1300 ? combo + 1 : 1; lastHit = now;
+      const pts = (it.gold ? 5 : 1) * combo;
+      score += pts; scoreEl.textContent = score;
+      burst(it.x, it.y, it.hue, combo + (it.gold ? 3 : 0));
+      texts.push({ x: it.x, y: it.y - 10, t: "+" + pts, life: 1, hue: it.hue, size: 15 + Math.min(combo, 8) * 2 });
+      comboEl.textContent = combo > 1 ? `x${combo} COMBO` : "";
+      comboEl.style.transform = "scale(1.25)"; setTimeout(() => (comboEl.style.transform = ""), 100);
+      if (navigator.vibrate) navigator.vibrate(combo > 3 ? 25 : 12);
+    });
+
+    function frame(now) {
+      const dt = Math.min(0.05, (now - last) / 1000 || 0); last = now;
+      if (running) {
+        const left = endAt - now;
+        timeEl.textContent = Math.max(0, Math.ceil(left / 1000));
+        if (now - lastHit > 1300 && combo) { combo = 0; comboEl.textContent = ""; }
+        if (now >= nextSpawn) { spawn(now); const p = 1 - left / GAME_MS; nextSpawn = now + 480 - p * 230 + Math.random() * 120; }
+        if (left <= 0) end();
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.clearRect(0, 0, W, H);
+      if (shake > 0) { ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake); shake *= 0.85; if (shake < 0.3) shake = 0; }
+
+      // 떠오르는 코드 조각
+      ctx.textAlign = "center"; ctx.textBaseline = "middle";
+      for (let i = items.length - 1; i >= 0; i--) {
+        const it = items[i];
+        it.y += it.vy * dt; it.x += it.vx * dt + Math.sin(now / 300 + it.wob) * 0.3;
+        if (it.y < -30) { items.splice(i, 1); continue; }
+        const c = `hsl(${it.hue} 100% ${it.gold ? 60 : 65}%)`;
+        ctx.font = `700 ${it.gold ? 20 : 17}px "JetBrains Mono", monospace`;
+        const w = ctx.measureText(it.text).width + 22;
+        ctx.shadowColor = c; ctx.shadowBlur = it.gold ? 22 : 14;
+        ctx.strokeStyle = c; ctx.lineWidth = 1.5; ctx.fillStyle = `hsl(${it.hue} 70% 12% / .75)`;
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(it.x - w / 2, it.y - 17, w, 34, 10) : ctx.rect(it.x - w / 2, it.y - 17, w, 34); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = "#fff"; ctx.shadowBlur = 8; ctx.fillText(it.text, it.x, it.y + 1);
+      }
+      ctx.shadowBlur = 0;
+
+      // 불꽃 (빛이 겹치면 더 밝아지게)
+      ctx.globalCompositeOperation = "lighter";
+      for (let i = rings.length - 1; i >= 0; i--) {
+        const r = rings[i]; r.life -= dt * 2.2; r.r += (r.max - r.r) * dt * 8;
+        if (r.life <= 0) { rings.splice(i, 1); continue; }
+        ctx.strokeStyle = `hsl(${r.hue} 100% 65% / ${r.life})`; ctx.lineWidth = 3 * r.life;
+        ctx.beginPath(); ctx.arc(r.x, r.y, r.r, 0, Math.PI * 2); ctx.stroke();
+      }
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        s.vx *= 0.96; s.vy = s.vy * 0.96 + 120 * dt; s.x += s.vx * dt; s.y += s.vy * dt; s.life -= dt * s.decay;
+        if (s.life <= 0) { sparks.splice(i, 1); continue; }
+        const g = ctx.createRadialGradient(s.x, s.y, 0, s.x, s.y, s.size * 4);
+        g.addColorStop(0, `hsl(${s.hue} 100% 80% / ${s.life})`); g.addColorStop(1, `hsl(${s.hue} 100% 50% / 0)`);
+        ctx.fillStyle = g; ctx.beginPath(); ctx.arc(s.x, s.y, s.size * 4, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.globalCompositeOperation = "source-over";
+
+      // 점수 글자
+      for (let i = texts.length - 1; i >= 0; i--) {
+        const t = texts[i]; t.life -= dt * 1.4; t.y -= 40 * dt;
+        if (t.life <= 0) { texts.splice(i, 1); continue; }
+        ctx.font = `900 ${t.size}px "Noto Sans KR", sans-serif`;
+        ctx.fillStyle = t.t === "miss" ? `rgba(160,150,190,${t.life})` : `hsl(${t.hue} 100% 75% / ${t.life})`;
+        ctx.fillText(t.t, t.x, t.y);
+      }
+
+      if (running || sparks.length || rings.length || texts.length) raf = requestAnimationFrame(frame);
+      else raf = 0;
+    }
+    const loop = () => { if (!raf) { last = performance.now(); raf = requestAnimationFrame(frame); } };
+
+    function start() {
+      resize();
+      items = []; score = 0; combo = 0; lastHit = 0; scoreEl.textContent = 0; timeEl.textContent = 10; comboEl.textContent = "";
+      overlay.hidden = true; running = true;
+      endAt = performance.now() + GAME_MS; nextSpawn = 0;
+      loop();
+    }
+
+    function end() {
+      running = false; items = [];
+      let prev = 0; try { prev = Number(localStorage.getItem("fireworksBest")) || 0; } catch {}
+      const isBest = score > prev;
+      if (isBest) try { localStorage.setItem("fireworksBest", score); } catch {}
+      overlay.innerHTML = "";
+      const h = document.createElement("h3"); h.textContent = `${score}점!${isBest && prev ? " 🎉 최고 기록" : ""}`;
+      const p = document.createElement("p"); p.innerHTML = "이 게임, 코딩 없이 말로만 만들었어요.<br>수업에서 나만의 게임이나 페이지를 직접 만들어 보세요.";
+      const cta = document.createElement("a"); cta.href = "#apply"; cta.className = "btn js-apply"; cta.textContent = "나도 만들어 보기 →";
+      const again = document.createElement("button"); again.type = "button"; again.className = "btn ghost sm"; again.textContent = "한 번 더";
+      again.addEventListener("click", start);
+      overlay.append(h, p, cta, again);
+      overlay.hidden = false;
+    }
+
+    document.getElementById("gStart").addEventListener("click", start);
+    // 탭을 바꾸면 게임을 멈춰요
+    document.addEventListener("visibilitychange", () => { if (document.hidden && running) end(); });
+  })();
   // 히어로 터미널 타이핑 연출
   const script = [
     ["p", "> "],

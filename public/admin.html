@@ -49,7 +49,7 @@
   .tabs button.on { color: var(--accent); border-color: var(--accent); }
 
   .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; margin-bottom: 16px; }
-  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
   .kpi { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
   .kpi .l { color: var(--muted); font-size: .88rem; }
   .kpi .v { font-size: 1.9rem; font-weight: 900; letter-spacing: -0.02em; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -111,7 +111,7 @@
   .group .pill.past { background: var(--line); color: var(--muted); }
 
   @media (max-width: 760px) {
-    .kpis { grid-template-columns: 1fr 1fr 1fr; }
+    .kpis { grid-template-columns: 1fr 1fr; }
     .kpi .v { font-size: 1.4rem; }
     .form-grid { grid-template-columns: 1fr 1fr; }
     .src { grid-template-columns: 90px 1fr 54px; }
@@ -151,6 +151,7 @@
         <div class="kpi"><div class="l">오늘 방문자</div><div class="v" id="kTodayV">-</div><div class="s" id="kTodayPv"></div></div>
         <div class="kpi"><div class="l">기간 방문자</div><div class="v" id="kTotalV">-</div><div class="s" id="kTotalPv"></div></div>
         <div class="kpi"><div class="l">기간 신청</div><div class="v" id="kSignups">-</div><div class="s" id="kConv"></div></div>
+        <div class="kpi"><div class="l">평균 체류 시간</div><div class="v" id="kDwell">-</div><div class="s" id="kDwellS"></div></div>
       </div>
       <div class="card sms">
         <div><div class="l">문자 잔액 (솔라피)</div><div class="v" id="smsBal">-</div></div>
@@ -166,6 +167,11 @@
         <h2 role="button" tabindex="0">날짜별 유입 경로 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
         <div class="tbl"><table id="dailySources"></table></div>
         <button class="more" type="button" id="dailySourcesMore"></button>
+      </div>
+      <div class="card">
+        <h2>유입 경로별 체류 시간</h2>
+        <div class="tbl"><table id="dwellBySource"></table></div>
+        <p class="muted" style="font-size:.85rem;margin:10px 0 0">랜딩 페이지를 화면에 띄워 둔 시간이에요. 다른 탭·앱으로 가 있던 시간은 빼고 세요. 체류 시간 기능을 넣은 뒤의 방문만 집계돼요. "10초 안에 나감"은 측정된 방문 중 10초도 안 보고 나간 비율이에요.</p>
       </div>
       <div class="card">
         <h2>요일별 합계</h2>
@@ -240,6 +246,7 @@
   let key = "";
   try { key = localStorage.getItem("adminKey") || ""; } catch {}
   const $ = (s) => document.querySelector(s);
+  const fmtDwell = (ms) => { const t = Math.round(ms / 1000); return t >= 60 ? `${Math.floor(t / 60)}분 ${t % 60}초` : `${t}초`; };
   const esc = (t) => String(t ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const phone = (p) => p.replace(/^(\d{3})(\d{3,4})(\d{4})$/, "$1-$2-$3");
   const fmtTime = (ts) => new Date(ts).toLocaleString("ko-KR", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -298,6 +305,9 @@
     $("#kTotalPv").textContent = `페이지뷰 ${d.total.views.toLocaleString()}`;
     $("#kSignups").textContent = d.total.signups;
     $("#kConv").textContent = d.total.visitors ? `방문자 대비 ${(d.total.signups / d.total.visitors * 100).toFixed(1)}%` : "";
+    const dw = d.total.dwell || { n: 0 };
+    $("#kDwell").textContent = dw.n ? fmtDwell(dw.avg) : "-";
+    $("#kDwellS").textContent = dw.n ? `중앙값 ${fmtDwell(dw.median)} · ${dw.n.toLocaleString()}회 측정` : "아직 측정 전이에요";
     $("#rangeLabel").textContent = `${d.daily[0].date} ~ ${d.daily[d.daily.length - 1].date} (한국 시간)`;
 
     const max = Math.max(1, ...d.daily.map((x) => x.visitors));
@@ -324,6 +334,14 @@
     $("#sources").innerHTML = d.sources.length ? d.sources.map((x) =>
       `<div class="src"><span class="name" title="${esc(x.name)}">${esc(x.name)}</span><div class="track"><div class="fill" style="width:${x.visitors / smax * 100}%"></div></div><span class="n">${x.visitors}</span></div>`).join("")
       : '<p class="muted">아직 방문 기록이 없어요.</p>';
+
+    const dsrc = d.sources.filter((x) => x.dwell && x.dwell.n);
+    $("#dwellBySource").innerHTML = dsrc.length
+      ? "<tr><th>유입 경로</th><th style='text-align:right'>평균</th><th style='text-align:right'>중앙값</th><th style='text-align:right'>10초 안에 나감</th><th style='text-align:right'>측정</th></tr>" +
+        dsrc.map((x) => `<tr><td>${esc(x.name)}</td><td style="text-align:right"><b>${fmtDwell(x.dwell.avg)}</b></td>` +
+          `<td style="text-align:right">${fmtDwell(x.dwell.median)}</td><td style="text-align:right">${Math.round(x.dwell.short * 100)}%</td>` +
+          `<td style="text-align:right" class="muted">${x.dwell.n}회</td></tr>`).join("")
+      : '<tr><td class="muted">아직 측정된 체류 시간이 없어요.</td></tr>';
 
     // 날짜별 유입 경로: 많이 들어온 경로 6개를 열로, 나머지는 "그 외"로 묶습니다. 최근 날짜가 위로 옵니다.
     const top = d.sources.slice(0, 6).map((x) => x.name);
