@@ -486,13 +486,13 @@
     <div class="wrap game">
       <div>
         <h2>이 게임도 말로 만들었어요</h2>
-        <p class="sub" style="margin-bottom:20px">코드를 한 줄도 직접 쓰지 않고, Claude Code에게 이렇게 부탁해서 만든 미니 게임이에요. 20초 동안 버그를 몇 마리 잡을 수 있는지 해 보세요.</p>
-        <div class="game-prompt"><span class="p">&gt; </span>휴대폰에서 터치로 버그를 잡는 20초짜리 미니 게임 만들어줘. 가끔 황금 버그는 3점!
+        <p class="sub" style="margin-bottom:20px">코드를 한 줄도 직접 쓰지 않고, Claude Code에게 이렇게 부탁해서 만든 미니 게임이에요. 10초 동안 버그를 몇 마리 잡을 수 있는지 해 보세요.</p>
+        <div class="game-prompt"><span class="p">&gt; </span>휴대폰에서 터치로 버그를 잡는 10초짜리 미니 게임 만들어줘. 가끔 황금 버그는 3점!
 <span class="g">✓ 게임 완성. 브라우저에서 확인해 보세요!</span></div>
         <p class="game-note">수업에서는 이런 결과물을 2시간 안에 직접 만들고 링크로 공유까지 해 봅니다.</p>
       </div>
       <div class="board" id="board">
-        <div class="board-hud"><span>잡은 버그 <b id="gScore">0</b></span><span>남은 시간 <b id="gTime">20</b>초</span></div>
+        <div class="board-hud"><span>잡은 버그 <b id="gScore">0</b></span><span>남은 시간 <b id="gTime">10</b>초</span></div>
         <div class="cells" id="cells">
           <div class="board-overlay" id="gOverlay">
             <h3>🐛 버그 잡기</h3>
@@ -857,9 +857,9 @@
       b.appendChild(document.createElement("span"));
       cellsEl.appendChild(b); return b;
     });
-    const GAME_MS = 20000;
+    const GAME_MS = 10000;
     let score = 0, endAt = 0, spawnT = 0, tickT = 0, running = false;
-    const best = () => { try { return Number(localStorage.getItem("bugBest")) || 0; } catch { return 0; } };
+    const best = () => { try { return Number(localStorage.getItem("bugBest10")) || 0; } catch { return 0; } };
 
     function flash(c, cls) { c.classList.add(cls); setTimeout(() => c.classList.remove(cls), 160); }
     function clear(c) { c.classList.remove("on"); c.firstChild.textContent = ""; delete c.dataset.pts; clearTimeout(c._t); }
@@ -901,7 +901,7 @@
     }
 
     function start() {
-      score = 0; scoreEl.textContent = 0; timeEl.textContent = 20;
+      score = 0; scoreEl.textContent = 0; timeEl.textContent = 10;
       overlay.hidden = true; running = true;
       endAt = performance.now() + GAME_MS;
       spawn(); tick();
@@ -910,7 +910,7 @@
     function end() {
       running = false; clearTimeout(spawnT); clearTimeout(tickT); cells.forEach(clear);
       const prev = best(), isBest = score > prev;
-      if (isBest) try { localStorage.setItem("bugBest", score); } catch {}
+      if (isBest) try { localStorage.setItem("bugBest10", score); } catch {}
       overlay.innerHTML = "";
       const h = document.createElement("h3"); h.textContent = `버그 ${score}마리 잡았어요!${isBest && prev ? " 🎉 최고 기록" : ""}`;
       const p = document.createElement("p"); p.innerHTML = "이 게임, 코딩 없이 말로만 만들었어요.<br>수업에서 나만의 게임이나 페이지를 직접 만들어 보세요.";
