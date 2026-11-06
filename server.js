@@ -991,7 +991,7 @@ function todayStatsText() {
 
 startTelegramCommands(async (text) => {
   const cmd = text.replace(/^\//, "").replace(/@\w+$/, "").trim();
-  if (cmd === "통" || cmd === "통계" || cmd.toLowerCase() === "stats") await sendTelegram(todayStatsText());
+  if (["ㅌ", "\u1110", "통", "통계"].includes(cmd.normalize("NFC")) || cmd.toLowerCase() === "stats") await sendTelegram(todayStatsText());
 });
 
 app.listen(PORT, () => {
