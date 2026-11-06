@@ -329,6 +329,31 @@
     .slot-left { text-align: left; min-width: 0; flex: 1; }
   }
   @media (max-width: 400px) { .wrap { padding: 0 16px; } }
+
+  /* 미니 게임 데모: 버그 잡기 */
+  .game { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center; }
+  .game-prompt { background: var(--term-bg); color: var(--term-ink); border-radius: 12px; padding: 14px 16px; font-family: "JetBrains Mono", ui-monospace, monospace; font-size: .85rem; margin: 0 0 16px; white-space: pre-wrap; }
+  .game-prompt .p { color: var(--accent); }
+  .game-prompt .g { color: var(--term-green); }
+  .game-note { color: var(--muted); margin: 0; font-size: .95rem; }
+  .board { background: var(--term-bg); border-radius: 18px; padding: 14px; box-shadow: 0 20px 50px rgba(0,0,0,.18); color: var(--term-ink); user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+  .board-hud { display: flex; justify-content: space-between; font-family: "JetBrains Mono", monospace; font-size: .9rem; padding: 2px 4px 12px; color: var(--term-dim); }
+  .board-hud b { color: var(--term-ink); }
+  .cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; position: relative; }
+  .cell { aspect-ratio: 1; border: 0; border-radius: 12px; background: #2a2622; font-size: 2.4rem; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; color: inherit; -webkit-tap-highlight-color: transparent; }
+  .cell::before { content: attr(data-code); position: absolute; font-family: "JetBrains Mono", monospace; font-size: .62rem; color: #5b544c; pointer-events: none; }
+  .cell { position: relative; }
+  .cell span { transform: scale(0); transition: transform .12s ease-out; position: relative; z-index: 1; }
+  .cell.on span { transform: scale(1); }
+  .cell.hit { background: #24402c; }
+  .cell.miss { background: #4a2420; }
+  .board-overlay { position: absolute; inset: 0; border-radius: 12px; background: rgba(12,11,10,.9); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 10px; padding: 16px; z-index: 2; }
+  .board-overlay h3 { margin: 0; font-size: 1.3rem; }
+  .board-overlay p { margin: 0; color: var(--term-dim); font-size: .92rem; }
+  .board-overlay .btn { width: 100%; max-width: 260px; }
+  .board-overlay .btn.ghost { color: var(--term-ink); border-color: #4a443e; }
+  @media (max-width: 820px) { .game { grid-template-columns: 1fr; gap: 24px; } }
+  @media (prefers-reduced-motion: reduce) { .cell span { transition: none; } }
   @media (prefers-reduced-motion: reduce) { .cursor { animation: none; } .btn { transition: none; } }
 </style>
 </head>
@@ -451,6 +476,29 @@
           <div class="time">01:55 – 02:00</div>
           <h3>다음 단계와 Q&amp;A</h3>
           <p>혼자서 계속 만들어 가는 방법, 자주 하는 실수, 비용 관리 팁.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- MINI GAME: 수업 결과물 데모 -->
+  <section id="demo">
+    <div class="wrap game">
+      <div>
+        <h2>이 게임도 말로 만들었어요</h2>
+        <p class="sub" style="margin-bottom:20px">코드를 한 줄도 직접 쓰지 않고, Claude Code에게 이렇게 부탁해서 만든 미니 게임이에요. 20초 동안 버그를 몇 마리 잡을 수 있는지 해 보세요.</p>
+        <div class="game-prompt"><span class="p">&gt; </span>휴대폰에서 터치로 버그를 잡는 20초짜리 미니 게임 만들어줘. 가끔 황금 버그는 3점!
+<span class="g">✓ 게임 완성. 브라우저에서 확인해 보세요!</span></div>
+        <p class="game-note">수업에서는 이런 결과물을 2시간 안에 직접 만들고 링크로 공유까지 해 봅니다.</p>
+      </div>
+      <div class="board" id="board">
+        <div class="board-hud"><span>잡은 버그 <b id="gScore">0</b></span><span>남은 시간 <b id="gTime">20</b>초</span></div>
+        <div class="cells" id="cells">
+          <div class="board-overlay" id="gOverlay">
+            <h3>🐛 버그 잡기</h3>
+            <p>나타나는 버그를 빠르게 터치하세요.<br>황금 버그 🪲는 3점이에요.</p>
+            <button type="button" class="btn" id="gStart">게임 시작</button>
+          </div>
         </div>
       </div>
     </div>
@@ -796,6 +844,87 @@
   });
 
   loadSlots();
+
+  // ── 미니 게임: 버그 잡기 (수업 결과물 데모) ──
+  (() => {
+    const cellsEl = document.getElementById("cells");
+    const overlay = document.getElementById("gOverlay");
+    const scoreEl = document.getElementById("gScore"), timeEl = document.getElementById("gTime");
+    const codes = ["<div>", "fn()", "if {", "css", "</a>", "for", "let x", "api", "};"];
+    const cells = codes.map((c) => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cell"; b.dataset.code = c; b.setAttribute("aria-label", "칸");
+      b.appendChild(document.createElement("span"));
+      cellsEl.appendChild(b); return b;
+    });
+    const GAME_MS = 20000;
+    let score = 0, endAt = 0, spawnT = 0, tickT = 0, running = false;
+    const best = () => { try { return Number(localStorage.getItem("bugBest")) || 0; } catch { return 0; } };
+
+    function flash(c, cls) { c.classList.add(cls); setTimeout(() => c.classList.remove(cls), 160); }
+    function clear(c) { c.classList.remove("on"); c.firstChild.textContent = ""; delete c.dataset.pts; clearTimeout(c._t); }
+
+    function spawn() {
+      if (!running) return;
+      const free = cells.filter((c) => !c.classList.contains("on"));
+      if (free.length) {
+        const c = free[Math.floor(Math.random() * free.length)];
+        const gold = Math.random() < 0.12;
+        c.dataset.pts = gold ? 3 : 1;
+        c.firstChild.textContent = gold ? "🪲" : "🐛";
+        c.classList.add("on");
+        const progress = 1 - (endAt - performance.now()) / GAME_MS; // 갈수록 빨라져요
+        const life = (gold ? 650 : 1000) - progress * 350;
+        c._t = setTimeout(() => clear(c), life);
+      }
+      const progress = 1 - (endAt - performance.now()) / GAME_MS;
+      spawnT = setTimeout(spawn, 620 - progress * 300);
+    }
+
+    function hit(e) {
+      const c = e.target.closest(".cell");
+      if (!c || !running) return;
+      e.preventDefault();
+      if (c.classList.contains("on")) {
+        score += Number(c.dataset.pts); scoreEl.textContent = score;
+        clear(c); flash(c, "hit");
+        if (navigator.vibrate) navigator.vibrate(15);
+      } else flash(c, "miss");
+    }
+    cellsEl.addEventListener("pointerdown", hit);
+
+    function tick() {
+      const left = Math.max(0, Math.ceil((endAt - performance.now()) / 1000));
+      timeEl.textContent = left;
+      if (left <= 0) return end();
+      tickT = setTimeout(tick, 200);
+    }
+
+    function start() {
+      score = 0; scoreEl.textContent = 0; timeEl.textContent = 20;
+      overlay.hidden = true; running = true;
+      endAt = performance.now() + GAME_MS;
+      spawn(); tick();
+    }
+
+    function end() {
+      running = false; clearTimeout(spawnT); clearTimeout(tickT); cells.forEach(clear);
+      const prev = best(), isBest = score > prev;
+      if (isBest) try { localStorage.setItem("bugBest", score); } catch {}
+      overlay.innerHTML = "";
+      const h = document.createElement("h3"); h.textContent = `버그 ${score}마리 잡았어요!${isBest && prev ? " 🎉 최고 기록" : ""}`;
+      const p = document.createElement("p"); p.innerHTML = "이 게임, 코딩 없이 말로만 만들었어요.<br>수업에서 나만의 게임이나 페이지를 직접 만들어 보세요.";
+      const cta = document.createElement("a"); cta.href = "#apply"; cta.className = "btn js-apply"; cta.textContent = "나도 만들어 보기 →";
+      const again = document.createElement("button"); again.type = "button"; again.className = "btn ghost sm"; again.textContent = "한 번 더";
+      again.addEventListener("click", start);
+      overlay.append(h, p, cta, again);
+      overlay.hidden = false;
+    }
+
+    document.getElementById("gStart").addEventListener("click", start);
+    // 화면 밖으로 나가거나 탭을 바꾸면 게임을 멈춰요
+    document.addEventListener("visibilitychange", () => { if (document.hidden && running) end(); });
+  })();
 
   // 히어로 터미널 타이핑 연출
   const script = [
