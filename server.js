@@ -145,6 +145,8 @@ const q = {
   deleteBlock: db.prepare("DELETE FROM blocked_ips WHERE id = ?"),
   signupsSince: db.prepare("SELECT created_at FROM signups WHERE created_at >= ?"),
   countBySlot: db.prepare("SELECT slot_id, COUNT(*) AS n FROM signups GROUP BY slot_id"),
+  // 누적 신청자 수: 취소는 행이 지워지니 자연히 빠지고, 이름에 '테스트'·'test'가 들어간 시험 신청도 뺍니다.
+  countTotal: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE name NOT LIKE '%테스트%' AND lower(name) NOT LIKE '%test%'"),
   countSlot: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE slot_id = ?"),
   insertSignup: db.prepare(
     "INSERT INTO signups (slot_id, name, phone, memo, created_at) VALUES (?, ?, ?, ?, ?)"
@@ -395,6 +397,14 @@ function openUpcomingSlots() {
   const now = Date.now();
   return loadSchedule().filter((s) => s.open && startsAt(s) > now);
 }
+// 첫 화면 "벌써 ○○명이 신청했어요". 숫자가 작으면 오히려 역효과라 SIGNUP_COUNT_MIN(기본 10명) 이상일 때만 보여요.
+const SIGNUP_COUNT_MIN = Number(process.env.SIGNUP_COUNT_MIN ?? 10);
+function signupCountSsr() {
+  const n = q.countTotal.get().n;
+  if (n < SIGNUP_COUNT_MIN) return "";
+  return `<p class="social-proof">🙌 벌써 <b>${n.toLocaleString("ko-KR")}명</b>이 신청했어요</p>`;
+}
+
 function slotsSsr() {
   const slots = openUpcomingSlots();
   if (!slots.length) return '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>';
@@ -437,6 +447,7 @@ app.get(["/", "/index.html"], (req, res) => {
     .replaceAll('content="/og.png?v=2"', `content="${origin}/og.png?v=2"`)
     .replace("<!--SEO_EXTRA-->", verify + courseJsonLd())
     .replace("<!--SLOTS_SSR-->", slotsSsr())
+    .replace("<!--SIGNUP_COUNT-->", signupCountSsr())
     .replace("</head>", `<meta name="build-id" content="${BUILD_ID}">\n` + (pv ? `<meta name="pv" content="${pv}">\n` : "") + "</head>"));
 });
 
