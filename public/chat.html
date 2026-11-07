@@ -49,6 +49,8 @@
   .log { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
   .empty { margin: auto; color: var(--muted); font-size: .95rem; text-align: center; }
   .day { align-self: center; font-size: .78rem; color: var(--muted); background: var(--accent-soft); padding: 3px 12px; border-radius: 999px; margin: 6px 0; }
+  .sys { align-self: center; font-size: .82rem; color: var(--muted); text-align: center; }
+  .sys b { color: var(--ink); font-weight: 700; }
   .msg { display: flex; flex-direction: column; align-items: flex-start; max-width: 82%; }
   .msg .who { font-size: .8rem; color: var(--muted); margin: 0 0 3px 4px; }
   .msg .row { display: flex; align-items: flex-end; gap: 6px; }
@@ -142,17 +144,33 @@ const pad = (n) => String(n).padStart(2, "0");
 const fmtTime = (ts) => { const d = new Date(ts); const h = d.getHours(); return `${h < 12 ? "오전" : "오후"} ${h % 12 || 12}:${pad(d.getMinutes())}`; };
 const fmtDay = (ts) => { const d = new Date(ts); return `${d.getMonth() + 1}월 ${d.getDate()}일 ${"일월화수목금토"[d.getDay()]}요일`; };
 
+function addDay(ts) {
+  const day = new Date(ts).toDateString();
+  if (day === lastDay) return;
+  const d = document.createElement("div");
+  d.className = "day"; d.textContent = fmtDay(ts);
+  $("log").appendChild(d);
+  lastDay = day; lastNick = null;
+}
+
+function addSystem(m) {
+  const log = $("log");
+  const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80;
+  log.querySelector(".empty")?.remove();
+  addDay(m.ts);
+  const el = document.createElement("div"); el.className = "sys";
+  const b = document.createElement("b"); b.textContent = m.nick;
+  el.append(b, m.kind === "join" ? "님이 들어왔어요" : "님이 나갔어요", " · " + fmtTime(m.ts));
+  log.appendChild(el);
+  lastNick = null;
+  if (stick) log.scrollTop = log.scrollHeight;
+}
+
 function addMessage(m) {
   const log = $("log");
   const stick = log.scrollHeight - log.scrollTop - log.clientHeight < 80 || m.nick === me;
   log.querySelector(".empty")?.remove();
-  const day = new Date(m.ts).toDateString();
-  if (day !== lastDay) {
-    const d = document.createElement("div");
-    d.className = "day"; d.textContent = fmtDay(m.ts);
-    log.appendChild(d);
-    lastDay = day; lastNick = null;
-  }
+  addDay(m.ts);
   const el = document.createElement("div");
   el.className = "msg" + (m.nick === me ? " me" : "") + (m.nick === lastNick ? " cont" : "");
   const who = document.createElement("div"); who.className = "who"; who.textContent = m.nick;
@@ -193,6 +211,7 @@ function enter() {
     $("log").scrollTop = $("log").scrollHeight;
   });
   es.addEventListener("message", (e) => addMessage(JSON.parse(e.data)));
+  es.addEventListener("system", (e) => addSystem(JSON.parse(e.data)));
   es.addEventListener("presence", (e) => setOnline(JSON.parse(e.data).online, true));
   es.onerror = async () => {
     setOnline([], false);

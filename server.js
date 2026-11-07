@@ -1059,6 +1059,23 @@ function chatBroadcast(event, data) {
   for (const c of chatClients) c.res.write(msg);
 }
 const chatPresence = () => chatBroadcast("presence", { online: chatOnline() });
+// 입장·퇴장 안내: 같은 닉네임의 연결이 처음 생길 때 "들어왔어요", 모두 끊길 때 "나갔어요"를 알려요.
+// 새로고침이나 잠깐 끊겼다 다시 붙는 경우엔 안내가 반복되지 않도록 퇴장은 5초 기다렸다가 알려요.
+const CHAT_LEAVE_GRACE_MS = 5000;
+const chatLeaveTimers = new Map(); // 닉네임 → 퇴장 안내 대기 타이머
+const chatCount = (nick) => [...chatClients].filter((c) => c.nick === nick).length;
+function chatJoined(nick) {
+  const pending = chatLeaveTimers.get(nick);
+  if (pending) { clearTimeout(pending); chatLeaveTimers.delete(nick); return; }
+  if (chatCount(nick) === 1) chatBroadcast("system", { kind: "join", nick, ts: Date.now() });
+}
+function chatLeft(nick) {
+  if (chatCount(nick) > 0 || chatLeaveTimers.has(nick)) return;
+  chatLeaveTimers.set(nick, setTimeout(() => {
+    chatLeaveTimers.delete(nick);
+    if (chatCount(nick) === 0) chatBroadcast("system", { kind: "leave", nick, ts: Date.now() });
+  }, CHAT_LEAVE_GRACE_MS));
+}
 
 app.get("/api/chat/stream", (req, res) => {
   const t = chatReadToken(req.query.token);
@@ -1068,12 +1085,14 @@ app.get("/api/chat/stream", (req, res) => {
   res.write(`retry: 3000\nevent: history\ndata: ${JSON.stringify(chatQ.recent.all(CHAT_HISTORY))}\n\n`);
   const client = { res, nick: t.nick, sid: t.sid };
   chatClients.add(client);
+  chatJoined(t.nick);
   chatPresence();
   // 프록시가 조용한 연결을 끊지 않도록 20초마다 빈 줄을 보내요.
   const ping = setInterval(() => res.write(": ping\n\n"), 20000);
   req.on("close", () => {
     clearInterval(ping);
     chatClients.delete(client);
+    chatLeft(t.nick);
     chatPresence();
   });
 });
