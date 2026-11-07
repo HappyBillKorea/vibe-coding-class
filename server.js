@@ -102,6 +102,12 @@ db.exec(`
     phone TEXT NOT NULL,
     expires_at INTEGER NOT NULL
   );
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts INTEGER NOT NULL,
+    nick TEXT NOT NULL,
+    text TEXT NOT NULL
+  );
 `);
 
 // 예전 DB에는 지역 칸이 없어서 추가합니다. (이전 방문 기록은 지역이 비어 있어요)
@@ -378,7 +384,7 @@ app.use((req, res, next) => {
 });
 
 app.get("/robots.txt", (req, res) => {
-  res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /api/\nDisallow: /info\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
+  res.type("text/plain").send(`User-agent: *\nAllow: /\nDisallow: /admin\nDisallow: /admin.html\nDisallow: /api/\nDisallow: /info\nDisallow: /chat\n\nSitemap: ${SITE_URL}/sitemap.xml\n`);
 });
 
 app.get("/sitemap.xml", (req, res) => {
@@ -988,6 +994,109 @@ function todayStatsText() {
   }
   return lines.join("\n");
 }
+
+// ── 단체 채팅 (/chat) ───────────────────────────────
+// 비밀번호(CHAT_PASSWORD, 기본 1322)를 맞히면 서명된 입장권을 받아 실시간으로 대화해요.
+// 실시간 전송은 Server-Sent Events(EventSource)라 추가 라이브러리가 필요 없어요.
+// 비밀번호는 서버에만 있고, 바꾸면 기존 입장권은 모두 무효가 돼요.
+const CHAT_PASSWORD = process.env.CHAT_PASSWORD || "1322";
+const CHAT_SECRET = crypto.createHash("sha256").update(`chat:${CHAT_PASSWORD}:${ADMIN_KEY}`).digest();
+const CHAT_TOKEN_TTL_MS = 7 * 24 * 3600 * 1000; // 입장 유지 7일
+const CHAT_HISTORY = 100; // 입장할 때 보여 줄 지난 메시지 수
+const CHAT_KEEP = 1000; // DB에 남겨 둘 메시지 수
+const chatQ = {
+  insert: db.prepare("INSERT INTO chat_messages (ts, nick, text) VALUES (?, ?, ?)"),
+  recent: db.prepare("SELECT * FROM (SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?) ORDER BY id"),
+  prune: db.prepare("DELETE FROM chat_messages WHERE id <= (SELECT id FROM chat_messages ORDER BY id DESC LIMIT 1 OFFSET ?)"),
+};
+const chatSign = (body) => crypto.createHmac("sha256", CHAT_SECRET).update(body).digest("base64url");
+function chatMakeToken(nick) {
+  const body = Buffer.from(JSON.stringify({ nick, exp: Date.now() + CHAT_TOKEN_TTL_MS, sid: crypto.randomBytes(6).toString("hex") })).toString("base64url");
+  return `${body}.${chatSign(body)}`;
+}
+function chatReadToken(token) {
+  const [body, sig] = String(token || "").split(".");
+  if (!body || !sig) return null;
+  const want = chatSign(body);
+  if (sig.length !== want.length || !crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(want))) return null;
+  try {
+    const t = JSON.parse(Buffer.from(body, "base64url").toString());
+    return t.exp > Date.now() && typeof t.nick === "string" ? t : null;
+  } catch { return null; }
+}
+const chatClean = (t, max) => String(t || "").replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, "").trim().slice(0, max);
+
+const chatFails = new Map(); // IP별 비밀번호 실패 (10분에 10번까지)
+app.post("/api/chat/join", (req, res) => {
+  const now = Date.now();
+  const f = chatFails.get(req.ip);
+  if (f && f.until > now && f.n >= 10) return res.status(429).json({ error: "비밀번호를 너무 많이 틀렸어요. 10분 뒤에 다시 시도해 주세요." });
+  const pw = String((req.body && req.body.password) || "");
+  const nick = chatClean(req.body && req.body.nick, 12).replace(/\n/g, " ");
+  if (pw.length !== CHAT_PASSWORD.length || !crypto.timingSafeEqual(Buffer.from(pw), Buffer.from(CHAT_PASSWORD))) {
+    const cur = f && f.until > now ? f : { n: 0, until: now + 10 * 60 * 1000 };
+    cur.n++;
+    chatFails.set(req.ip, cur);
+    return res.status(401).json({ error: "비밀번호가 맞지 않아요." });
+  }
+  chatFails.delete(req.ip);
+  if (!nick) return res.status(400).json({ error: "닉네임을 입력해 주세요." });
+  res.json({ token: chatMakeToken(nick), nick });
+});
+
+app.get("/api/chat/me", (req, res) => {
+  const t = chatReadToken(req.get("x-chat-token"));
+  if (!t) return res.status(401).json({ error: "다시 입장해 주세요." });
+  res.json({ nick: t.nick });
+});
+
+const chatClients = new Set(); // { res, nick, sid }
+function chatOnline() {
+  return [...new Set([...chatClients].map((c) => c.nick))];
+}
+function chatBroadcast(event, data) {
+  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
+  for (const c of chatClients) c.res.write(msg);
+}
+const chatPresence = () => chatBroadcast("presence", { online: chatOnline() });
+
+app.get("/api/chat/stream", (req, res) => {
+  const t = chatReadToken(req.query.token);
+  if (!t) return res.status(401).json({ error: "다시 입장해 주세요." });
+  res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive", "X-Accel-Buffering": "no" });
+  res.flushHeaders();
+  res.write(`retry: 3000\nevent: history\ndata: ${JSON.stringify(chatQ.recent.all(CHAT_HISTORY))}\n\n`);
+  const client = { res, nick: t.nick, sid: t.sid };
+  chatClients.add(client);
+  chatPresence();
+  // 프록시가 조용한 연결을 끊지 않도록 20초마다 빈 줄을 보내요.
+  const ping = setInterval(() => res.write(": ping\n\n"), 20000);
+  req.on("close", () => {
+    clearInterval(ping);
+    chatClients.delete(client);
+    chatPresence();
+  });
+});
+
+const chatLastSend = new Map(); // 입장권별 마지막 전송 시각 (도배 방지)
+app.post("/api/chat/send", (req, res) => {
+  const t = chatReadToken(req.get("x-chat-token"));
+  if (!t) return res.status(401).json({ error: "다시 입장해 주세요." });
+  const text = chatClean(req.body && req.body.text, 500);
+  if (!text) return res.status(400).json({ error: "메시지를 입력해 주세요." });
+  const now = Date.now();
+  if (now - (chatLastSend.get(t.sid) || 0) < 400) return res.status(429).json({ error: "조금 천천히 보내 주세요." });
+  chatLastSend.set(t.sid, now);
+  const info = chatQ.insert.run(now, t.nick, text);
+  if (info.lastInsertRowid % 100 === 0) chatQ.prune.run(CHAT_KEEP);
+  chatBroadcast("message", { id: Number(info.lastInsertRowid), ts: now, nick: t.nick, text });
+  res.json({ ok: true });
+});
+setInterval(() => {
+  const cut = Date.now() - 60 * 1000;
+  for (const [k, v] of chatLastSend) if (v < cut) chatLastSend.delete(k);
+  for (const [k, v] of chatFails) if (v.until < Date.now()) chatFails.delete(k);
+}, 10 * 60 * 1000).unref();
 
 startTelegramCommands(async (text) => {
   const cmd = text.replace(/^\//, "").replace(/@\w+$/, "").trim();
