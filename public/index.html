@@ -221,6 +221,12 @@
   a.work p { flex: 1; }
   .work-url { margin-top: 14px; color: var(--accent); font-weight: 700; font-size: .92rem; }
 
+  /* Student showcase */
+  #showcase { padding-bottom: 0; }
+  .work-tag { align-self: flex-start; background: var(--accent-soft); color: var(--accent); font-size: .8rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; margin-bottom: 12px; }
+  .showcase-note { margin: 20px 0 0; color: var(--muted); font-size: .95rem; }
+  .showcase-note b { color: var(--ink); }
+
   /* Reviews */
   .photos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 0 0 32px; }
   .photos figure { margin: 0; }
@@ -566,6 +572,38 @@
           <figcaption><b>혜*</b> · GPT 스터디 참가자</figcaption>
         </figure>
       </div>
+    </div>
+  </section>
+
+  <!-- STUDENT SHOWCASE: 수강생이 수업 당일 직접 만들어 배포한 사이트 -->
+  <section id="showcase">
+    <div class="wrap">
+      <h2>수강생이 수업 당일 만든 서비스</h2>
+      <p class="sub">코딩을 처음 해 본 수강생들이 수업 시간 안에 만들고 배포까지 마친 실제 사이트예요. 지금도 접속됩니다.</p>
+      <div class="grid3 works">
+        <a class="card work" href="https://3w54td345.vercel.app/" target="_blank" rel="noopener">
+          <span class="work-tag">회사 홈페이지</span>
+          <div class="ic">🏢</div>
+          <h3>연우파트너스</h3>
+          <p>경비·미화·채용대행 회사의 홈페이지. 서비스 소개부터 현장 운영 방식, 보고 체계까지 한 페이지에 담았어요.</p>
+          <span class="work-url">사이트 열어 보기 ↗</span>
+        </a>
+        <a class="card work" href="https://12313w56.vercel.app/" target="_blank" rel="noopener">
+          <span class="work-tag">개인 브랜드</span>
+          <div class="ic">🎨</div>
+          <h3>쓸모야의 작은 세상</h3>
+          <p>종이인형 캐릭터 '쓸모야'를 소개하는 페이지. 누를 때마다 바뀌는 '오늘의 한마디'와 작품 갤러리를 넣었어요.</p>
+          <span class="work-url">사이트 열어 보기 ↗</span>
+        </a>
+        <a class="card work" href="https://test-nu-seven-94.vercel.app/" target="_blank" rel="noopener">
+          <span class="work-tag">재미 서비스</span>
+          <div class="ic">💘</div>
+          <h3>한드 캐릭터 궁합 월드컵</h3>
+          <p>내 생년월일을 넣으면 좋아하는 한국 드라마 캐릭터와의 사주 궁합을 풀어 주는 서비스. 입력부터 결과 계산까지 작동해요.</p>
+          <span class="work-url">사이트 열어 보기 ↗</span>
+        </a>
+      </div>
+      <p class="showcase-note">다음 회차에서는 <b>여러분의 아이디어</b>가 이 자리에 올라갑니다. 아래에서 일정을 골라 보세요.</p>
     </div>
   </section>
 
