@@ -1006,12 +1006,13 @@ const CHAT_HISTORY = 100; // 입장할 때 보여 줄 지난 메시지 수
 const CHAT_KEEP = 1000; // DB에 남겨 둘 메시지 수
 const chatQ = {
   insert: db.prepare("INSERT INTO chat_messages (ts, nick, text) VALUES (?, ?, ?)"),
-  recent: db.prepare("SELECT * FROM (SELECT * FROM chat_messages ORDER BY id DESC LIMIT ?) ORDER BY id"),
+  // 입장한 시각(since) 이후 메시지만 보여 줘요. 새로 들어온 사람은 그전 대화를 볼 수 없어요.
+  recent: db.prepare("SELECT * FROM (SELECT * FROM chat_messages WHERE ts >= ? ORDER BY id DESC LIMIT ?) ORDER BY id"),
   prune: db.prepare("DELETE FROM chat_messages WHERE id <= (SELECT id FROM chat_messages ORDER BY id DESC LIMIT 1 OFFSET ?)"),
 };
 const chatSign = (body) => crypto.createHmac("sha256", CHAT_SECRET).update(body).digest("base64url");
 function chatMakeToken(nick) {
-  const body = Buffer.from(JSON.stringify({ nick, exp: Date.now() + CHAT_TOKEN_TTL_MS, sid: crypto.randomBytes(6).toString("hex") })).toString("base64url");
+  const body = Buffer.from(JSON.stringify({ nick, since: Date.now(), exp: Date.now() + CHAT_TOKEN_TTL_MS, sid: crypto.randomBytes(6).toString("hex") })).toString("base64url");
   return `${body}.${chatSign(body)}`;
 }
 function chatReadToken(token) {
@@ -1082,7 +1083,7 @@ app.get("/api/chat/stream", (req, res) => {
   if (!t) return res.status(401).json({ error: "다시 입장해 주세요." });
   res.set({ "Content-Type": "text/event-stream", "Cache-Control": "no-store", Connection: "keep-alive", "X-Accel-Buffering": "no" });
   res.flushHeaders();
-  res.write(`retry: 3000\nevent: history\ndata: ${JSON.stringify(chatQ.recent.all(CHAT_HISTORY))}\n\n`);
+  res.write(`retry: 3000\nevent: history\ndata: ${JSON.stringify(chatQ.recent.all(Number(t.since) || 0, CHAT_HISTORY))}\n\n`);
   const client = { res, nick: t.nick, sid: t.sid };
   chatClients.add(client);
   chatJoined(t.nick);

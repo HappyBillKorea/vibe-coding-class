@@ -204,7 +204,7 @@ function enter() {
     const list = JSON.parse(e.data);
     if (!list.length) {
       const d = document.createElement("div"); d.className = "empty";
-      d.textContent = "아직 메시지가 없어요. 첫 인사를 남겨 보세요 👋";
+      d.textContent = "입장한 뒤의 메시지만 보여요. 첫 인사를 남겨 보세요 👋";
       $("log").appendChild(d);
     }
     list.forEach(addMessage);
