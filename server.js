@@ -156,6 +156,8 @@ const q = {
   countBySlot: db.prepare("SELECT slot_id, COUNT(*) AS n FROM signups GROUP BY slot_id"),
   // 누적 신청자 수: 취소는 행이 지워지니 자연히 빠지고, 이름에 '테스트'·'test'가 들어간 시험 신청도 뺍니다.
   countTotal: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE name NOT LIKE '%테스트%' AND lower(name) NOT LIKE '%test%'"),
+  countAll: db.prepare("SELECT COUNT(*) AS n FROM signups"),
+  visitTotals: db.prepare("SELECT COUNT(*) AS views, COUNT(DISTINCT vid) AS visitors FROM visits"),
   countSlot: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE slot_id = ?"),
   insertSignup: db.prepare(
     "INSERT INTO signups (slot_id, name, phone, memo, created_at) VALUES (?, ?, ?, ?, ?)"
@@ -791,6 +793,9 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       views: rows.length,
       visitors: allVisitors.size,
       signups: Object.values(daily).reduce((n, d) => n + d.signups, 0),
+      // 기간 선택과 상관없는 전체 누적 신청 수예요.
+      allSignups: q.countAll.get().n,
+      all: q.visitTotals.get(), // 기간 상관없는 전체 누적 방문자·페이지뷰
       dwell: dwellSummary(allDwell),
     },
     daily: Object.entries(daily).map(([date, d]) => ({
