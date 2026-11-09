@@ -149,8 +149,8 @@
       </div>
       <div class="kpis">
         <div class="kpi"><div class="l">오늘 방문자</div><div class="v" id="kTodayV">-</div><div class="s" id="kTodayPv"></div></div>
-        <div class="kpi"><div class="l">기간 방문자</div><div class="v" id="kTotalV">-</div><div class="s" id="kTotalPv"></div></div>
-        <div class="kpi"><div class="l">기간 신청</div><div class="v" id="kSignups">-</div><div class="s" id="kConv"></div></div>
+        <div class="kpi"><div class="l">누적 방문자</div><div class="v" id="kTotalV">-</div><div class="s" id="kTotalPv"></div></div>
+        <div class="kpi"><div class="l">누적 신청</div><div class="v" id="kSignups">-</div><div class="s" id="kConv"></div></div>
         <div class="kpi"><div class="l">평균 체류 시간</div><div class="v" id="kDwell">-</div><div class="s" id="kDwellS"></div></div>
       </div>
       <div class="card sms">
@@ -301,10 +301,11 @@
     loadSms();
     $("#kTodayV").textContent = d.today.visitors.toLocaleString();
     $("#kTodayPv").textContent = `페이지뷰 ${d.today.views.toLocaleString()} · 신청 ${d.today.signups}`;
-    $("#kTotalV").textContent = d.total.visitors.toLocaleString();
-    $("#kTotalPv").textContent = `페이지뷰 ${d.total.views.toLocaleString()}`;
-    $("#kSignups").textContent = d.total.signups;
-    $("#kConv").textContent = d.total.visitors ? `방문자 대비 ${(d.total.signups / d.total.visitors * 100).toFixed(1)}%` : "";
+    $("#kTotalV").textContent = d.total.all.visitors.toLocaleString();
+    $("#kTotalPv").textContent = `페이지뷰 ${d.total.all.views.toLocaleString()} · 기간 방문자 ${d.total.visitors.toLocaleString()}`;
+    $("#kSignups").textContent = d.total.allSignups.toLocaleString();
+    // 전환율은 고른 기간 안의 신청과 방문자로 계산해요.
+    $("#kConv").textContent = `기간 신청 ${d.total.signups}` + (d.total.visitors ? ` · 방문자 대비 ${(d.total.signups / d.total.visitors * 100).toFixed(1)}%` : "");
     const dw = d.total.dwell || { n: 0 };
     $("#kDwell").textContent = dw.n ? fmtDwell(dw.avg) : "-";
     $("#kDwellS").textContent = dw.n ? `중앙값 ${fmtDwell(dw.median)} · ${dw.n.toLocaleString()}회 측정` : "아직 측정 전이에요";
