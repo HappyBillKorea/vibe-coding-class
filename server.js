@@ -150,6 +150,9 @@ const q = {
   insertBlock: db.prepare("INSERT OR IGNORE INTO blocked_ips (rule, label, region, created_at) VALUES (?, ?, ?, ?)"),
   deleteBlock: db.prepare("DELETE FROM blocked_ips WHERE id = ?"),
   signupsSince: db.prepare("SELECT created_at FROM signups WHERE created_at >= ?"),
+  // 요일별 누적용: 한국 날짜별 방문자(중복 제외)와 신청 수를 전체 기간에서 셉니다.
+  visitorsByDay: db.prepare("SELECT date(ts / 1000 + 32400, 'unixepoch') AS day, COUNT(DISTINCT vid) AS visitors FROM visits GROUP BY day"),
+  signupsByDay: db.prepare("SELECT date(created_at / 1000 + 32400, 'unixepoch') AS day, COUNT(*) AS n FROM signups GROUP BY day"),
   countBySlot: db.prepare("SELECT slot_id, COUNT(*) AS n FROM signups GROUP BY slot_id"),
   // 누적 신청자 수: 취소는 행이 지워지니 자연히 빠지고, 이름에 '테스트'·'test'가 들어간 시험 신청도 뺍니다.
   countTotal: db.prepare("SELECT COUNT(*) AS n FROM signups WHERE name NOT LIKE '%테스트%' AND lower(name) NOT LIKE '%test%'"),
@@ -766,6 +769,21 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
     if (d) d.signups++;
   }
   const today = daily[todayKey];
+
+  // 요일별 합계는 고른 기간과 상관없이 전체 기간 누적이에요. 첫 기록 날부터 오늘까지의 날짜를 월~일로 묶습니다.
+  const weekdays = ["월", "화", "수", "목", "금", "토", "일"].map((name) => ({ name, days: 0, visitors: 0, signups: 0 }));
+  const wdOf = (day) => weekdays[(new Date(day + "T00:00:00Z").getUTCDay() + 6) % 7];
+  const vByDay = q.visitorsByDay.all();
+  const sByDay = q.signupsByDay.all();
+  for (const r of vByDay) wdOf(r.day).visitors += r.visitors;
+  for (const r of sByDay) wdOf(r.day).signups += r.n;
+  const firstDay = [...vByDay, ...sByDay].map((r) => r.day).sort()[0];
+  if (firstDay) {
+    for (let t = new Date(firstDay + "T00:00:00Z").getTime(), end = new Date(todayKey + "T00:00:00Z").getTime(); t <= end; t += 86400000) {
+      wdOf(new Date(t).toISOString().slice(0, 10)).days++;
+    }
+  }
+
   res.json({
     days,
     today: { views: today.views, visitors: today.visitors.size, signups: today.signups },
@@ -791,6 +809,8 @@ app.get("/api/admin/stats", requireAdmin, (req, res) => {
       }))
       .sort((a, b) => b.visitors - a.visitors),
     directRecent: directRecent.sort((a, b) => b.ts - a.ts).slice(0, 30),
+    weekdays,
+    weekdaysSince: firstDay || null,
   });
 });
 

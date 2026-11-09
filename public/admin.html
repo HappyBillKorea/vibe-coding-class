@@ -176,7 +176,7 @@
       <div class="card">
         <h2>요일별 합계</h2>
         <div class="tbl"><table id="weekdays"></table></div>
-        <p class="muted" style="font-size:.85rem;margin:10px 0 0">위에서 고른 기간 안의 날짜를 요일별로 더한 값이에요.</p>
+        <p class="muted" style="font-size:.85rem;margin:10px 0 0"><span id="weekdaysNote">위에서 고른 기간과 상관없이, 기록이 시작된 날부터 오늘까지 전체를 요일별로 더한 값이에요.</span></p>
       </div>
       <div class="card">
         <h2>직접 방문 지역 <span class="muted" style="font-weight:400;font-size:.85rem">(방문자 수)</span></h2>
@@ -316,12 +316,11 @@
     $("#chart").innerHTML = d.daily.map((x) =>
       `<div class="col"><div class="tip">${x.date.slice(5)} · 방문자 ${x.visitors} · 뷰 ${x.views} · 신청 ${x.signups}</div><span class="bv">${x.visitors || ""}</span><div class="bar" style="height:${x.visitors / max * 85}%"></div></div>`).join("");
 
-    // 요일별 합계: 기간 안의 날짜(한국 날짜)를 월~일로 묶어 방문자와 신청을 더합니다.
-    const wd = ["월", "화", "수", "목", "금", "토", "일"].map((name) => ({ name, n: 0, visitors: 0, signups: 0 }));
-    for (const x of d.daily) {
-      const w = wd[(new Date(x.date + "T00:00:00Z").getUTCDay() + 6) % 7];
-      w.n++; w.visitors += x.visitors; w.signups += x.signups;
-    }
+    // 요일별 합계: 기간 선택과 상관없이 전체 기간 누적(서버에서 계산)이에요.
+    const wd = d.weekdays.map((w) => ({ ...w, n: w.days }));
+    $("#weekdaysNote").textContent = d.weekdaysSince
+      ? `위에서 고른 기간과 상관없이, ${d.weekdaysSince}부터 오늘까지 전체를 요일별로 더한 값이에요.`
+      : "아직 기록이 없어요.";
     const wmax = Math.max(1, ...wd.map((w) => w.visitors));
     $("#weekdays").innerHTML = "<tr><th>요일</th><th>방문자</th><th style='text-align:right'>방문자 합</th><th style='text-align:right'>신청 합</th></tr>" +
       wd.map((w) => `<tr><td${w.name === "토" || w.name === "일" ? ' style="color:var(--accent)"' : ""}><b>${w.name}</b> <span class="muted" style="font-size:.8rem">${w.n}일</span></td>` +
