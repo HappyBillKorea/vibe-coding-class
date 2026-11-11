@@ -21,6 +21,8 @@ const IGNORED_DATA_DIR = Boolean(VOLUME_PATH && requestedDir && !isInside(reques
 // Railway에서 볼륨 없이 돌고 있으면 재배포 때 데이터가 지워집니다. 관리자 화면에 경고를 띄웁니다.
 const DATA_NOT_PERSISTENT = Boolean(process.env.RAILWAY_ENVIRONMENT || process.env.RAILWAY_PROJECT_ID) && !VOLUME_PATH;
 const ADMIN_KEY = process.env.ADMIN_KEY || "";
+// 새 신청 문자를 받을 운영자 번호. 여러 개면 쉼표로 구분해요. 예: 01012345678,01098765432
+const ADMIN_PHONES = String(process.env.ADMIN_PHONE || "").split(",").map((p) => p.trim()).filter(Boolean);
 // 검색엔진용 대표 주소와 사이트 소유 확인 값 (구글 서치 콘솔, 네이버 서치어드바이저에서 받은 content 값)
 // 배포 구분용 (서버가 시작된 시각). 재배포가 반영됐는지 확인할 때 씁니다.
 const BUILD_ID = process.env.RAILWAY_DEPLOYMENT_ID || new Date().toISOString();
@@ -670,7 +672,11 @@ app.post("/api/apply", async (req, res) => {
     sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
   }
-  // 운영자에게 가는 새 신청 알림은 텔레그램으로만 보냅니다. 설정이 없거나 실패해도 신청은 유지돼요.
+  // 운영자에게 가는 새 신청 알림: ADMIN_PHONE 문자 + 텔레그램. 설정이 없거나 실패해도 신청은 유지돼요.
+  if (smsConfigured()) {
+    const adminText = `[새신청] ${name.slice(0, 5)} ${shortSlot(slot)} ${taken}/${slot.capacity}명 ${fmtPhone(t.phone)}`;
+    for (const to of ADMIN_PHONES) sendSms(to, adminText).catch(() => {});
+  }
   sendTelegram(signupTelegramText({ name, phone: t.phone, memo }, slot, taken));
   res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
 });
