@@ -253,6 +253,13 @@
   .review blockquote::before { content: "“"; color: var(--accent); font-size: 2rem; line-height: 0; vertical-align: -0.4em; margin-right: 2px; font-weight: 900; }
   .review figcaption { color: var(--muted); font-size: .92rem; }
   .review figcaption b { color: var(--ink); }
+  .review.featured { border: 2px solid var(--accent); background: var(--accent-soft); padding: 30px; margin: 0 0 20px; }
+  .review.featured .tag { align-self: flex-start; background: var(--accent); color: var(--accent-ink); font-size: .8rem; font-weight: 700; padding: 4px 12px; border-radius: 999px; }
+  .review.featured blockquote { font-size: 1.08rem; line-height: 1.75; }
+  .review.featured blockquote p { margin: 0 0 10px; }
+  .review.featured blockquote p:last-child { margin: 0; }
+  .review.featured mark { background: none; color: var(--ink); font-weight: 700; box-shadow: inset 0 -0.45em 0 color-mix(in srgb, var(--accent) 28%, transparent); }
+  @media (max-width: 640px) { .review.featured { padding: 22px; } }
 
   /* Schedule */
   .slots { display: grid; gap: 12px; }
@@ -543,11 +550,11 @@
     </div>
   </section>
 
-  <!-- REVIEWS: Bill의 이전 AI·GPT 스터디 참가자 단톡방 후기 (이름은 가림) -->
+  <!-- REVIEWS: 입문반 수강 후기(당근 모임) + Bill의 이전 AI·GPT 스터디 참가자 단톡방 후기 (이름은 가림) -->
   <section class="alt" id="reviews">
     <div class="wrap">
       <h2>먼저 들은 분들의 이야기</h2>
-      <p class="sub">Bill이 진행한 AI·GPT 스터디 참가자들이 단톡방에 남겨 주신 말이에요. "또 열어 주세요"라는 요청이 이어져 이번 클래스를 열게 됐어요.</p>
+      <p class="sub">바이브코딩 입문반 수강생 후기와, 그 전에 Bill이 진행한 AI·GPT 스터디 참가자들이 단톡방에 남겨 주신 말이에요.</p>
       <div class="photos">
         <figure>
           <img src="/class1.jpg" alt="강남 회의실에서 소수 인원이 노트북을 펴고 수업을 듣는 모습" width="1200" height="900" loading="lazy">
@@ -558,6 +565,16 @@
           <figcaption>큰 화면으로 같이 보면서 하나씩 따라 해요.</figcaption>
         </figure>
       </div>
+      <figure class="review featured">
+        <span class="tag">⭐ 바이브코딩 입문반 수강 후기</span>
+        <blockquote>
+          <p>그동안 막연하게만 알고 있었던 바이브 코딩을 이번 강의를 통해 좀 더 구체적으로 이해할 수 있었습니다.</p>
+          <p>바이브 코딩으로 무언가를 만드는 것까지는 알고 있었지만, 실제로 완성한 결과물을 배포하는 방법은 잘 몰랐습니다. <mark>이번 강의를 통해 배포까지 해결할 수 있어서 정말 좋았습니다.</mark></p>
+          <p>저처럼 <mark>초보인 분들도</mark> 다른 사람들과 함께 이야기를 나누고 새로운 지식을 얻으며 <mark>한 단계 성장할 수 있는 기회</mark>라고 생각합니다.</p>
+          <p>단돈 3만 원으로 <mark>그 이상의 가치와 배움</mark>을 얻어 갈 수 있다고 확신합니다. <mark>강력 추천합니다!</mark></p>
+        </blockquote>
+        <figcaption><b>나는꽃</b> · 서울 노원구 · 당근 '바이브코딩 입문반' 모임 후기</figcaption>
+      </figure>
       <div class="grid3 reviews">
         <figure class="review">
           <blockquote>감사합니다~!!!! 또 한 번 신세계를 맛봤네요 ㅎㅎ 오늘 준비해 주시느라 넘 수고하셨습니다.</blockquote>
