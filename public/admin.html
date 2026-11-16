@@ -174,7 +174,7 @@
         <p class="muted" style="font-size:.85rem;margin:10px 0 0">랜딩 페이지를 화면에 띄워 둔 시간이에요. 다른 탭·앱으로 가 있던 시간은 빼고 세요. 체류 시간 기능을 넣은 뒤의 방문만 집계돼요. "10초 안에 나감"은 측정된 방문 중 10초도 안 보고 나간 비율이에요.</p>
       </div>
       <div class="card">
-        <h2>요일별 합계</h2>
+        <h2>요일별 합계 <span class="muted" style="font-weight:400;font-size:.85rem">(신청자 수)</span></h2>
         <div class="tbl"><table id="weekdays"></table></div>
         <p class="muted" style="font-size:.85rem;margin:10px 0 0"><span id="weekdaysNote">위에서 고른 기간과 상관없이, 기록이 시작된 날부터 오늘까지 전체를 요일별로 더한 값이에요.</span></p>
       </div>
@@ -322,11 +322,13 @@
     $("#weekdaysNote").textContent = d.weekdaysSince
       ? `위에서 고른 기간과 상관없이, ${d.weekdaysSince}부터 오늘까지 전체를 요일별로 더한 값이에요.`
       : "아직 기록이 없어요.";
-    const wmax = Math.max(1, ...wd.map((w) => w.visitors));
-    $("#weekdays").innerHTML = "<tr><th>요일</th><th>방문자</th><th style='text-align:right'>방문자 합</th><th style='text-align:right'>신청 합</th></tr>" +
+    // 그래프는 신청자 수 기준이에요. 방문자 합과 방문자 대비 신청 비율은 옆에 참고로 둡니다.
+    const wmax = Math.max(1, ...wd.map((w) => w.signups));
+    $("#weekdays").innerHTML = "<tr><th>요일</th><th>신청자</th><th style='text-align:right;white-space:nowrap'>신청</th><th style='text-align:right;white-space:nowrap'>방문자</th><th style='text-align:right;white-space:nowrap'>신청률</th></tr>" +
       wd.map((w) => `<tr><td${w.name === "토" || w.name === "일" ? ' style="color:var(--accent)"' : ""}><b>${w.name}</b> <span class="muted" style="font-size:.8rem">${w.n}일</span></td>` +
-        `<td style="width:45%"><div class="src" style="display:block;padding:0"><div class="track"><div class="fill" style="width:${w.visitors / wmax * 100}%"></div></div></div></td>` +
-        `<td style="text-align:right"><b>${w.visitors}</b></td><td style="text-align:right">${w.signups || '<span class="muted">-</span>'}</td></tr>`).join("");
+        `<td style="width:40%"><div class="src" style="display:block;padding:0"><div class="track"><div class="fill" style="width:${w.signups / wmax * 100}%"></div></div></div></td>` +
+        `<td style="text-align:right"><b>${w.signups}</b></td><td style="text-align:right">${w.visitors}</td>` +
+        `<td style="text-align:right" class="muted">${w.visitors ? (w.signups / w.visitors * 100).toFixed(1) + "%" : "-"}</td></tr>`).join("");
     const step = Math.ceil(d.daily.length / 10);
     $("#axis").innerHTML = d.daily.map((x, i) => `<span>${i % step === 0 ? Number(x.date.slice(8)) : ""}</span>`).join("");
 
