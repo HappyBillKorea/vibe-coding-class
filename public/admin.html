@@ -139,6 +139,7 @@
       <button data-tab="stats" class="on">방문 통계</button>
       <button data-tab="slots">강의 일정</button>
       <button data-tab="signups">신청자</button>
+      <button data-tab="chatlinks">채팅 링크</button>
     </nav>
 
     <!-- 방문 통계 -->
@@ -239,6 +240,15 @@
       <div id="signupList"></div>
       <p class="muted" id="storageInfo" style="font-size:.82rem;margin-top:18px"></p>
     </section>
+
+    <!-- 채팅 링크 -->
+    <section data-view="chatlinks" hidden>
+      <div class="card">
+        <h2>채팅방에 올라온 링크</h2>
+        <p class="muted" id="chatLinksInfo" style="margin:0 0 10px"></p>
+        <div style="overflow-x:auto"><table id="chatLinks"></table></div>
+      </div>
+    </section>
   </div>
 </main>
 
@@ -278,7 +288,19 @@
   $("#logout").addEventListener("click", () => { key = ""; showLogin(); });
 
   // 탭
-  const loaders = { stats: loadStats, slots: loadSlots, signups: loadSignups };
+  const loaders = { stats: loadStats, slots: loadSlots, signups: loadSignups, chatlinks: loadChatLinks };
+  async function loadChatLinks() {
+    const d = await api("/api/admin/chat-links");
+    const full = (ts) => new Date(ts).toLocaleString("ko-KR", { year: "numeric", month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    $("#chatLinksInfo").textContent = d.messages
+      ? `저장된 메시지 ${d.messages.toLocaleString()}개(${full(d.oldest)}부터)에서 링크 ${d.links.length}개를 찾았어요. 최신순이에요.`
+      : "채팅방에 저장된 메시지가 아직 없어요.";
+    $("#chatLinks").innerHTML = d.links.length
+      ? "<tr><th>날짜</th><th>보낸 사람</th><th>링크</th><th>메시지</th></tr>" + d.links.slice().reverse().map((l) =>
+          `<tr><td class="nowrap muted">${full(l.ts)}</td><td class="nowrap">${esc(l.nick)}</td>` +
+          `<td><a href="${esc(l.href)}" target="_blank" rel="noopener noreferrer">${esc(l.url)}</a></td><td class="muted">${esc(l.text)}</td></tr>`).join("")
+      : "";
+  }
   document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => {
     document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
     document.querySelectorAll("[data-view]").forEach((v) => v.hidden = v.dataset.view !== b.dataset.tab);

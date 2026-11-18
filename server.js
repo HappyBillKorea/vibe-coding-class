@@ -1041,6 +1041,20 @@ const chatQ = {
   recent: db.prepare("SELECT * FROM (SELECT * FROM chat_messages WHERE ts >= ? ORDER BY id DESC LIMIT ?) ORDER BY id"),
   prune: db.prepare("DELETE FROM chat_messages WHERE id <= (SELECT id FROM chat_messages ORDER BY id DESC LIMIT 1 OFFSET ?)"),
 };
+// 관리자: 채팅방에 올라온 링크 모아 보기 (DB에 남은 최근 메시지 전체에서 찾아요)
+const CHAT_URL_RE = /\bhttps?:\/\/[^\s<>"']+|(?<![@\w.-])(?:[a-z0-9-]+\.)+(?:com|kr|net|org|io|app|dev|me|site|co|xyz|page|ai|so|link|store|shop)(?:\/[^\s<>"']*)?/gi;
+const chatAllQ = db.prepare("SELECT id, ts, nick, text FROM chat_messages ORDER BY id");
+app.get("/api/admin/chat-links", requireAdmin, (req, res) => {
+  const all = chatAllQ.all();
+  const links = [];
+  for (const m of all) {
+    for (const raw of String(m.text).match(CHAT_URL_RE) || []) {
+      const url = raw.replace(/[).,!?\]'"…~]+$/, "");
+      links.push({ id: m.id, ts: m.ts, nick: m.nick, url, href: /^https?:\/\//i.test(url) ? url : `https://${url}`, text: m.text });
+    }
+  }
+  res.json({ messages: all.length, oldest: all.length ? all[0].ts : null, links });
+});
 const chatSign = (body) => crypto.createHmac("sha256", CHAT_SECRET).update(body).digest("base64url");
 function chatMakeToken(nick) {
   const body = Buffer.from(JSON.stringify({ nick, since: Date.now(), exp: Date.now() + CHAT_TOKEN_TTL_MS, sid: crypto.randomBytes(6).toString("hex") })).toString("base64url");
