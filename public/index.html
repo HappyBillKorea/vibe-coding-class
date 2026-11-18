@@ -8,7 +8,7 @@
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/site.webmanifest">
-<meta name="theme-color" content="#1c1917">
+<meta name="theme-color" content="#0b0b0b">
 <meta name="description" content="코딩을 몰라도 괜찮아요. 클로드 코드(Claude Code)로 2시간 동안 나만의 홈페이지를 만들고 배포까지 해보는 강남 오프라인 바이브 코딩 입문 강의. 회차당 5명 소수 정예, 수강료 3만 원.">
 <meta name="keywords" content="바이브 코딩, 바이브코딩 강의, 클로드 코드, Claude Code, 클로드 코드 강의, AI 코딩 강의, 노코드, 코딩 입문, 강남 코딩 강의, 오프라인 코딩 클래스">
 <meta name="robots" content="index, follow, max-image-preview:large">
@@ -31,30 +31,17 @@
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #faf8f5;
-    --surface: #ffffff;
-    --ink: #1c1917;
-    --muted: #6b645c;
-    --line: #e7e2db;
+    color-scheme: dark;
+    --bg: #0b0b0b;
+    --surface: #161514;
+    --ink: #f3efe9;
+    --muted: #a9a29a;
+    --line: #2c2a27;
     --accent: #d9622b;
     --accent-ink: #ffffff;
-    --accent-soft: #fbe9df;
-    --placeholder: #fff3c4;
-    --placeholder-ink: #7a5a00;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --bg: #141210;
-      --surface: #1e1b18;
-      --ink: #f2ede6;
-      --muted: #a8a097;
-      --line: #34302b;
-      --accent: #ef7a43;
-      --accent-ink: #1c1917;
-      --accent-soft: #3a2519;
-      --placeholder: #4a3c10;
-      --placeholder-ink: #ffe08a;
-    }
+    --accent-soft: #2e1b11;
+    --placeholder: #4a3c10;
+    --placeholder-ink: #ffe08a;
   }
   * { box-sizing: border-box; }
   [hidden] { display: none !important; }
@@ -128,7 +115,7 @@
   .no-terminal p { margin: 0; line-height: 1.6; }
   .chat {
     background: var(--surface); border: 1px solid var(--line); border-radius: 18px;
-    box-shadow: 0 20px 50px rgba(0,0,0,.14); overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5); overflow: hidden;
     display: flex; flex-direction: column; height: 400px; font-size: .92rem; line-height: 1.55;
   }
   .chat-head { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--line); font-weight: 700; }
@@ -329,8 +316,8 @@
   dialog .row .btn { margin-top: 6px; white-space: nowrap; }
   .opt { color: var(--muted); font-weight: 400; }
   .hint { display: block; margin-top: 6px; font-weight: 400; color: var(--muted); font-size: .85rem; }
-  .msg { min-height: 1.4em; margin: 0 0 12px; color: #d33; font-size: .92rem; }
-  .msg.ok { color: #2a9d55; }
+  .msg { min-height: 1.4em; margin: 0 0 12px; color: #ff7b72; font-size: .92rem; }
+  .msg.ok { color: #4cc27a; }
   #submitBtn { width: 100%; }
   .done { text-align: center; padding: 10px 0 0; }
   .done-ic { font-size: 2.6rem; }
