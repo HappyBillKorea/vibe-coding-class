@@ -205,6 +205,7 @@
       <div class="card">
         <h2 id="slotFormTitle">일정 추가</h2>
         <form id="slotForm" class="form-grid">
+          <label>과정<select name="course"><option value="basic">기본 과정 (2시간 · 30,000원)</option><option value="advanced">심화 과정 (3시간 · 55,000원)</option></select></label>
           <label>날짜<input type="date" name="date" required></label>
           <label>시작<input type="time" name="start" value="14:00" required></label>
           <label>종료<input type="time" name="end" value="16:00" required></label>
@@ -469,9 +470,10 @@
   async function loadSlots() {
     const { slots } = await api("/api/admin/slots");
     $("#slotTable").innerHTML = slots.length
-      ? "<tr><th>일시</th><th>장소</th><th>신청</th><th>신청 받기</th><th></th></tr>" + slots.map((s) => `
+      ? "<tr><th>일시</th><th>과정</th><th>장소</th><th>신청</th><th>신청 받기</th><th></th></tr>" + slots.map((s) => `
         <tr${s.past ? ' class="muted"' : ""}>
           <td>${esc(s.label)}${s.past ? " <span class='pill off'>지남</span>" : ""}</td>
+          <td>${s.course === "advanced" ? "심화" : "기본"}</td>
           <td>${esc(s.place)}</td>
           <td>${s.taken}/${s.capacity}명</td>
           <td><label class="switch"><input type="checkbox" data-toggle="${esc(s.id)}" ${s.open ? "checked" : ""}> ${s.open ? "공개" : "숨김"}</label></td>
@@ -485,6 +487,13 @@
     $("#slotFormTitle").textContent = "일정 추가"; $("#slotSubmit").textContent = "추가"; $("#slotCancel").hidden = true; $("#slotErr").textContent = "";
   }
   $("#slotCancel").addEventListener("click", resetForm);
+  // 과정을 바꾸면 종료 시간을 과정 길이(기본 2시간, 심화 3시간)에 맞춰 줍니다. 필요하면 직접 고칠 수 있어요.
+  form.course.addEventListener("change", () => {
+    const [h, m] = form.start.value.split(":").map(Number);
+    if (isNaN(h)) return;
+    const end = h + (form.course.value === "advanced" ? 3 : 2);
+    if (end < 24) form.end.value = `${String(end).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  });
   form.addEventListener("submit", async (e) => {
     e.preventDefault(); $("#slotErr").textContent = "";
     const body = Object.fromEntries(new FormData(form));
@@ -500,7 +509,7 @@
     if (e.target.dataset.edit) {
       const s = slots.find((x) => x.id === e.target.dataset.edit);
       editingId = s.id;
-      for (const k of ["date", "start", "end", "place", "capacity"]) form[k].value = s[k];
+      for (const k of ["course", "date", "start", "end", "place", "capacity"]) form[k].value = s[k];
       $("#slotFormTitle").textContent = "일정 수정"; $("#slotSubmit").textContent = "저장"; $("#slotCancel").hidden = false;
       form.scrollIntoView({ behavior: "smooth", block: "center" });
     }
