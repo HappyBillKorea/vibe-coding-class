@@ -25,7 +25,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="/og.png?v=3">
 <!--SEO_EXTRA-->
-<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "코딩을 정말 하나도 몰라도 되나요?", "acceptedAnswer": {"@type": "Answer", "text": "네. 이 클래스는 코딩 경험이 전혀 없는 분을 기준으로 만들었습니다. 코드를 직접 쓰는 대신 원하는 것을 말로 설명하는 방법을 배웁니다."}}, {"@type": "Question", "name": "Claude 유료 구독이 필요한가요?", "acceptedAnswer": {"@type": "Answer", "text": "네. Claude Code를 쓰려면 Claude Pro 이상 유료 요금제가 필요해요. 수업 전에 claude.ai에서 Pro 결제를 마치고 오시면 바로 실습을 시작할 수 있어요."}}, {"@type": "Question", "name": "수강료는 언제 어떻게 내나요?", "acceptedAnswer": {"@type": "Answer", "text": "미리 결제하실 필요 없어요. 수업 당일 현장에서 30,000원을 결제해 주시면 됩니다."}}, {"@type": "Question", "name": "노트북 사양이 낮아도 괜찮나요?", "acceptedAnswer": {"@type": "Answer", "text": "괜찮습니다. 무거운 작업은 AI 쪽에서 처리하기 때문에 인터넷과 웹 브라우저가 잘 되는 노트북이면 충분합니다."}}, {"@type": "Question", "name": "수업이 끝나면 무엇을 가져가나요?", "acceptedAnswer": {"@type": "Answer", "text": "직접 만든 홈페이지와 그 홈페이지에 접속할 수 있는 실제 주소, 그리고 혼자서도 계속 만들어 갈 수 있는 작업 흐름을 가져가십니다."}}]}</script>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "코딩을 정말 하나도 몰라도 되나요?", "acceptedAnswer": {"@type": "Answer", "text": "네. 이 클래스는 코딩 경험이 전혀 없는 분을 기준으로 만들었습니다. 코드를 직접 쓰는 대신 원하는 것을 말로 설명하는 방법을 배웁니다."}}, {"@type": "Question", "name": "Claude 유료 구독이 필요한가요?", "acceptedAnswer": {"@type": "Answer", "text": "네. Claude Code를 쓰려면 Claude Pro 이상 유료 요금제가 필요해요. 수업 전에 claude.ai에서 Pro 결제를 마치고 오시면 바로 실습을 시작할 수 있어요."}}, {"@type": "Question", "name": "수강료는 언제 어떻게 내나요?", "acceptedAnswer": {"@type": "Answer", "text": "미리 결제하실 필요 없어요. 수업 당일 현장에서 수강료(기본 과정 30,000원, 심화 과정 55,000원)를 결제해 주시면 됩니다."}}, {"@type": "Question", "name": "노트북 사양이 낮아도 괜찮나요?", "acceptedAnswer": {"@type": "Answer", "text": "괜찮습니다. 무거운 작업은 AI 쪽에서 처리하기 때문에 인터넷과 웹 브라우저가 잘 되는 노트북이면 충분합니다."}}, {"@type": "Question", "name": "수업이 끝나면 무엇을 가져가나요?", "acceptedAnswer": {"@type": "Answer", "text": "직접 만든 홈페이지와 그 홈페이지에 접속할 수 있는 실제 주소, 그리고 혼자서도 계속 만들어 갈 수 있는 작업 흐름을 가져가십니다."}}]}</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
@@ -335,6 +335,10 @@
   .slot.off { opacity: .55; }
   .slot-date { font-weight: 700; font-size: 1.05rem; }
   .slot-place { color: var(--muted); font-size: .92rem; }
+  .slot-course { display: inline-block; margin-top: 6px; font-size: .82rem; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--ink); }
+  .slot-course.advanced { background: var(--ink); color: var(--bg); }
+  .dlg-price { margin: -12px 0 20px; font-size: .92rem; color: var(--ink); }
+  .dlg-price b { font-size: 1.05rem; }
   .slot-side { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
   .seats-bar { display: flex; gap: 3px; }
   .seats-bar i { width: 8px; height: 18px; border-radius: 3px; background: var(--accent-soft); display: block; }
@@ -551,7 +555,7 @@
             <dl class="course-meta">
               <div><dt>시간</dt><dd>3시간</dd></div>
               <div><dt>수강료</dt><dd>55,000원</dd></div>
-              <div><dt>상태</dt><dd class="soon">12월 오픈 예정</dd></div>
+              <div><dt>상태</dt><dd class="on">12월 모집 중</dd></div>
             </dl>
           </header>
           <ol class="lessons">
@@ -781,6 +785,7 @@
           <div class="price-box">
             <div class="label">수강료</div>
             <div class="price">30,000원</div>
+            <div class="seats">기본 과정(2시간) 기준 · 심화 과정(3시간)은 55,000원</div>
             <div class="seats">당일 현장 결제 · 회차당 최대 5명</div>
             <dl class="facts">
               <dt>장소</dt><dd>강남 · 9호선 봉은사역 도보 3분 (자세한 위치는 신청 시 문자로 안내)</dd>
@@ -788,7 +793,7 @@
               <dt>준비물</dt><dd>노트북 (Mac 또는 Windows), 충전기, 클로드 코드를 쓰기 위한 Claude Pro 결제</dd>
             </dl>
             <small>신청이 완료되면 문자로 안내드리고, 사전 준비 방법은 따로 연락드립니다.</small>
-            <small>도메인·텔레그램·문자 인증을 다루는 심화 과정(3시간 · 55,000원)은 12월 오픈 예정이에요.</small>
+            <small>도메인·텔레그램·문자 인증을 다루는 심화 과정(3시간 · 55,000원)은 12월 일요일 회차로 신청받고 있어요. 일정 옆의 과정 이름과 수강료를 확인해 주세요.</small>
           </div>
         </div>
       </div>
@@ -810,7 +815,7 @@
       </details>
       <details>
         <summary>수강료는 언제 어떻게 내나요?</summary>
-        <p>미리 결제하실 필요 없어요. 수업 당일 현장에서 30,000원을 결제해 주시면 됩니다.</p>
+        <p>미리 결제하실 필요 없어요. 수업 당일 현장에서 수강료(기본 과정 30,000원, 심화 과정 55,000원)를 결제해 주시면 됩니다.</p>
       </details>
       <details>
         <summary>노트북 사양이 낮아도 괜찮나요?</summary>
@@ -847,6 +852,7 @@
     <button type="button" class="dlg-close" aria-label="닫기" data-close>×</button>
     <h3 id="dlgTitle">수강 신청</h3>
     <p class="dlg-slot" id="dlgSlot"></p>
+    <p class="dlg-price" id="dlgPrice"></p>
 
     <div id="stepForm">
       <label>이름<input name="name" autocomplete="name" maxlength="30" required></label>
@@ -916,6 +922,11 @@
   const days = ["일", "월", "화", "수", "목", "금", "토"];
   let current = null, token = null, timer = null;
 
+  // 과정 이름 · 시간 · 수강료 (예: 심화 과정 · 3시간 · 55,000원)
+  function courseText(s) {
+    return `${s.courseName || "기본 과정"} · ${s.hours || 2}시간 · ${(s.price || 30000).toLocaleString("ko-KR")}원`;
+  }
+
   function slotLabel(s) {
     const [, m, d] = s.date.split("-");
     const day = days[new Date(s.date + "T12:00:00Z").getUTCDay()];
@@ -952,6 +963,7 @@
           <div class="slot-info">
             <div class="slot-date"></div>
             <div class="slot-place"></div>
+            <div class="slot-course"></div>
           </div>
           <div class="slot-side">
             <div class="seats-bar" aria-hidden="true">${"<i></i>".repeat(s.capacity)}</div>
@@ -960,6 +972,9 @@
           </div>`;
         el.querySelector(".slot-date").textContent = slotLabel(s);
         el.querySelector(".slot-place").textContent = s.place;
+        const tag = el.querySelector(".slot-course");
+        tag.textContent = courseText(s);
+        if (s.course === "advanced") tag.classList.add("advanced");
         [...el.querySelectorAll(".seats-bar i")].forEach((i, idx) => { if (idx < s.capacity - s.remaining) i.className = "on"; });
         el.querySelector(".slot-left").textContent = s.closed ? "종료" : full ? "마감" : `${s.remaining}자리 남음`;
         const b = el.querySelector("button");
@@ -979,6 +994,10 @@
     current = s; token = null;
     form.reset();
     $("#dlgSlot").textContent = `${slotLabel(s)} · ${s.place} · ${s.remaining}자리 남음`;
+    $("#dlgPrice").innerHTML = "<b></b> · 수강료 <b></b> (당일 현장 결제)";
+    const [cName, cPrice] = $("#dlgPrice").querySelectorAll("b");
+    cName.textContent = `${s.courseName || "기본 과정"} ${s.hours || 2}시간`;
+    cPrice.textContent = `${(s.price || 30000).toLocaleString("ko-KR")}원`;
     $("#stepForm").hidden = false; $("#stepDone").hidden = true;
     $("#codeRow").hidden = true; $("#codeHint").textContent = "";
     form.phone.readOnly = false; form.country.disabled = false; form.phone.placeholder = "010-1234-5678";
@@ -1037,7 +1056,7 @@
     const btn = $("#submitBtn"); btn.disabled = true; setMsg("");
     try {
       await post("/api/apply", { slotId: current.id, name: form.name.value, memo: form.memo.value, token });
-      $("#doneText").textContent = `${slotLabel(current)} 클래스에 자리를 잡아 두었어요. 안내 문자를 보내드릴게요.`;
+      $("#doneText").textContent = `${slotLabel(current)} ${current.courseName || "기본 과정"} 클래스에 자리를 잡아 두었어요. 수강료 ${(current.price || 30000).toLocaleString("ko-KR")}원은 당일 현장에서 결제해 주세요. 안내 문자를 보내드릴게요.`;
       $("#stepForm").hidden = true; $("#stepDone").hidden = false;
     } catch (err) { setMsg(err.message); btn.disabled = false; }
   });

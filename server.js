@@ -46,6 +46,16 @@ function loadSchedule() {
   return q.allSlots.all().map((s) => ({ ...s, open: Boolean(s.open) }));
 }
 
+// 과정 구분: 회차마다 기본/심화 중 하나를 고르고, 신청 화면에 과정 이름과 수강료를 보여줍니다.
+const COURSES = {
+  basic: { name: "기본 과정", hours: 2, price: 30000 },
+  advanced: { name: "심화 과정", hours: 3, price: 55000 },
+};
+const courseOf = (slot) => COURSES[slot.course] || COURSES.basic;
+const won = (n) => n.toLocaleString("ko-KR") + "원";
+// 관리자 화면·알림에서 쓰는 앞머리: 심화 회차만 "[심화] "를 붙여 구분합니다.
+const coursePrefix = (slot) => (slot.course === "advanced" ? "[심화] " : "");
+
 function startsAt(slot) {
   return new Date(`${slot.date}T${slot.start}:00+09:00`).getTime();
 }
@@ -125,6 +135,11 @@ db.exec(`
   if (!cols.includes("dwell")) db.exec("ALTER TABLE visits ADD COLUMN dwell INTEGER");
   db.exec("CREATE INDEX IF NOT EXISTS visits_pv ON visits (pv)");
 }
+// 예전 DB의 일정에는 과정 칸이 없어서 추가합니다. 기존 회차는 모두 기본 과정이에요.
+{
+  const cols = db.prepare("PRAGMA table_info(slots)").all().map((c) => c.name);
+  if (!cols.includes("course")) db.exec("ALTER TABLE slots ADD COLUMN course TEXT NOT NULL DEFAULT 'basic'");
+}
 // 2026-11-03 이전 직접 방문 지역 중 "해외(…)"는 Railway CDN 주소로 잘못 잡힌 기록이라 지역 정보를 지웁니다.
 // 방문 기록(방문자 수)은 그대로 두고 지역·IP 칸만 비워요. 이 시각 이후 기록은 건드리지 않아요.
 {
@@ -137,10 +152,10 @@ const q = {
   allSlots: db.prepare("SELECT * FROM slots ORDER BY date, start"),
   getSlot: db.prepare("SELECT * FROM slots WHERE id = ?"),
   insertSlot: db.prepare(
-    "INSERT INTO slots (id, date, start, end, place, capacity, open) VALUES (@id, @date, @start, @end, @place, @capacity, @open)"
+    "INSERT OR IGNORE INTO slots (id, date, start, end, place, capacity, open, course) VALUES (@id, @date, @start, @end, @place, @capacity, @open, @course)"
   ),
   updateSlot: db.prepare(
-    "UPDATE slots SET date = @date, start = @start, end = @end, place = @place, capacity = @capacity, open = @open WHERE id = @id"
+    "UPDATE slots SET date = @date, start = @start, end = @end, place = @place, capacity = @capacity, open = @open, course = @course WHERE id = @id"
   ),
   deleteSlot: db.prepare("DELETE FROM slots WHERE id = ?"),
   insertVisit: db.prepare("INSERT INTO visits (ts, vid, source, referrer, region, city, ip, ip_full, pv) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)"),
@@ -190,7 +205,7 @@ if (db.prepare("SELECT COUNT(*) AS n FROM slots").get().n === 0) {
   const seedPath = path.join(__dirname, "schedule.json");
   if (fs.existsSync(seedPath)) {
     for (const s of JSON.parse(fs.readFileSync(seedPath, "utf8"))) {
-      q.insertSlot.run({ capacity: 5, ...s, open: 1 });
+      q.insertSlot.run({ capacity: 5, course: "basic", ...s, open: 1 });
     }
   }
 }
@@ -199,6 +214,15 @@ if (db.prepare("SELECT COUNT(*) AS n FROM slots").get().n === 0) {
 if (db.pragma("user_version", { simple: true }) < 1) {
   db.prepare("UPDATE slots SET capacity = 5 WHERE capacity = 6 AND (SELECT COUNT(*) FROM signups WHERE slot_id = slots.id) <= 5").run();
   db.pragma("user_version = 1");
+}
+
+// 1회성 변경: 심화 과정 첫 회차 2개(12월 첫째·둘째 주 일요일 14:00~17:00)를 엽니다.
+// 한 번만 넣기 때문에, 나중에 관리자 화면에서 지우거나 고쳐도 다시 생기지 않아요.
+if (db.pragma("user_version", { simple: true }) < 2) {
+  for (const date of ["2026-12-06", "2026-12-13"]) {
+    q.insertSlot.run({ id: `${date}-adv`, date, start: "14:00", end: "17:00", place: "강남", capacity: 5, open: 1, course: "advanced" });
+  }
+  db.pragma("user_version = 2");
 }
 
 // 정원 확인과 저장을 한 트랜잭션으로 묶어 동시에 신청해도 정원을 넘지 않게 합니다.
@@ -421,7 +445,7 @@ function signupCountSsr() {
 function slotsSsr() {
   const slots = openUpcomingSlots();
   if (!slots.length) return '<p class="muted">지금은 열린 일정이 없어요. 곧 다음 일정을 공지할게요.</p>';
-  return "<ul class=\"muted\">" + slots.map((s) => `<li>${htmlEsc(formatSlot(s))} · ${htmlEsc(s.place)} · 정원 ${s.capacity}명</li>`).join("") + "</ul>";
+  return "<ul class=\"muted\">" + slots.map((s) => `<li>${htmlEsc(formatSlot(s))} · ${courseOf(s).name} ${won(courseOf(s).price)} · ${htmlEsc(s.place)} · 정원 ${s.capacity}명</li>`).join("") + "</ul>";
 }
 // 구글 검색 결과에 강의 정보가 나오도록 하는 구조화 데이터(Course)
 function courseJsonLd() {
@@ -442,6 +466,7 @@ function courseJsonLd() {
       endDate: `${s.date}T${s.end}:00+09:00`,
       location: { "@type": "Place", name: s.place, address: { "@type": "PostalAddress", addressLocality: "강남구", addressRegion: "서울", addressCountry: "KR" } },
       instructor: { "@type": "Person", name: "Bill" },
+      offers: { "@type": "Offer", category: "Paid", price: courseOf(s).price, priceCurrency: "KRW", url: SITE_URL + "/#apply" },
     })),
   };
   return `<script type="application/ld+json">${JSON.stringify(data).replace(/</g, "\\u003c")}</script>`;
@@ -567,6 +592,10 @@ app.get("/api/slots", (req, res) => {
         end: s.end,
         place: s.place,
         capacity: s.capacity,
+        course: COURSES[s.course] ? s.course : "basic",
+        courseName: courseOf(s).name,
+        hours: courseOf(s).hours,
+        price: courseOf(s).price,
         remaining: Math.max(0, s.capacity - taken),
         closed: startsAt(s) <= now,
       };
@@ -641,6 +670,7 @@ function signupTelegramText(signup, slot, taken, prefix = "[새 신청]") {
   return [
     `${prefix} ${signup.name}` + (slot ? ` (${taken}/${slot.capacity}명)` : ""),
     `일정: ${slot ? formatSlot(slot) : signup.slot_id}`,
+    slot && `과정: ${courseOf(slot).name} (${won(courseOf(slot).price)})`,
     `연락처: ${fmtPhone(signup.phone)}`,
     signup.memo && `메모: ${signup.memo}`,
   ].filter(Boolean).join("\n");
@@ -669,16 +699,16 @@ app.post("/api/apply", async (req, res) => {
 
   const taken = q.countSlot.get(slot.id).n;
   if (smsConfigured()) {
-    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)} 신청 완료. 안내: ${INFO_URL}`)
+    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)}${slot.course === "advanced" ? " 심화" : ""} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
   }
   // 운영자에게 가는 새 신청 알림: ADMIN_PHONE 문자 + 텔레그램. 설정이 없거나 실패해도 신청은 유지돼요.
   if (smsConfigured()) {
-    const adminText = `[새신청] ${name.slice(0, 5)} ${shortSlot(slot)} ${taken}/${slot.capacity}명 ${fmtPhone(t.phone)}`;
+    const adminText = `[새신청] ${coursePrefix(slot)}${name.slice(0, 5)} ${shortSlot(slot)} ${taken}/${slot.capacity}명 ${fmtPhone(t.phone)}`;
     for (const to of ADMIN_PHONES) sendSms(to, adminText).catch(() => {});
   }
   sendTelegram(signupTelegramText({ name, phone: t.phone, memo }, slot, taken));
-  res.json({ success: true, slot: { ...slot, label: formatSlot(slot) } });
+  res.json({ success: true, slot: { ...slot, label: formatSlot(slot), courseName: courseOf(slot).name, price: courseOf(slot).price } });
 });
 
 // ── 관리자 ─────────────────────────────────────────
@@ -864,12 +894,13 @@ function readSlotBody(body) {
   if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end) || start >= end) return { error: "시작·종료 시간을 확인해 주세요." };
   if (!place) return { error: "장소를 입력해 주세요." };
   if (!(capacity >= 1 && capacity <= 100)) return { error: "정원은 1~100명 사이로 입력해 주세요." };
-  return { slot: { date, start, end, place, capacity, open: body.open === false ? 0 : 1 } };
+  const course = body.course === "advanced" ? "advanced" : "basic";
+  return { slot: { date, start, end, place, capacity, open: body.open === false ? 0 : 1, course } };
 }
 
 function slotsWithCounts() {
   const counts = Object.fromEntries(q.countBySlot.all().map((r) => [r.slot_id, r.n]));
-  return loadSchedule().map((s) => ({ ...s, label: formatSlot(s), taken: counts[s.id] || 0, past: startsAt(s) <= Date.now() }));
+  return loadSchedule().map((s) => ({ ...s, label: coursePrefix(s) + formatSlot(s), taken: counts[s.id] || 0, past: startsAt(s) <= Date.now() }));
 }
 
 app.get("/api/admin/sms-balance", requireAdmin, async (req, res) => {
