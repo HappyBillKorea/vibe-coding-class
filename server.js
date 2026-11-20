@@ -225,6 +225,17 @@ if (db.pragma("user_version", { simple: true }) < 2) {
   db.pragma("user_version = 2");
 }
 
+// 1회성 변경: 11월 28일 회차를 심화 과정(3시간)으로 바꿉니다. 시작 시간은 그대로 두고 끝나는 시간만 3시간 뒤로 맞춰요.
+// 한 번만 실행되니, 나중에 관리자 화면에서 다시 고쳐도 덮어쓰지 않아요.
+if (db.pragma("user_version", { simple: true }) < 3) {
+  for (const s of db.prepare("SELECT * FROM slots WHERE date = '2026-11-28'").all()) {
+    const [h, m] = s.start.split(":").map(Number);
+    const end = `${String(Math.min(h + 3, 23)).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+    q.updateSlot.run({ ...s, end, course: "advanced" });
+  }
+  db.pragma("user_version = 3");
+}
+
 // 정원 확인과 저장을 한 트랜잭션으로 묶어 동시에 신청해도 정원을 넘지 않게 합니다.
 const applyTx = db.transaction((slot, name, phone, memo) => {
   if (q.findSignup.get(slot.id, phone)) return "duplicate";
