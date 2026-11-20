@@ -375,8 +375,9 @@
     const days = d.daily.filter((x, i) => x.visitors || i === d.daily.length - 1).reverse();
     const srcCell = (v, b) => `<td style="text-align:right">${v ? (b ? `<b>${v}</b>` : v) : '<span class="muted">-</span>'}</td>`;
     // 첫 줄은 기간 전체 합계입니다. 날짜별 숫자를 그대로 더한 값이라, 여러 날 들어온 사람은 날마다 한 번씩 셉니다.
+    const todayKst = new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10);
     const sumOf = (f) => days.reduce((n, x) => n + f(x), 0);
-    const totalRow = `<tr style="background:var(--accent-soft)"><td style="white-space:nowrap"><b>합계</b></td>` +
+    const totalRow = `<tr><td style="white-space:nowrap"><b>합계</b></td>` +
       top.map((n) => srcCell(sumOf((x) => x.sources[n] || 0), true)).join("") +
       (rest ? srcCell(sumOf((x) => Object.entries(x.sources).filter(([k]) => !top.includes(k)).reduce((m, [, v]) => m + v, 0)), true) : "") +
       srcCell(sumOf((x) => x.visitors), true) + srcCell(sumOf((x) => x.signups), true) + "</tr>";
@@ -384,7 +385,8 @@
       ? "<tr><th>날짜</th>" + top.map((n) => `<th style="text-align:right">${esc(n)}</th>`).join("") + (rest ? "<th style='text-align:right'>그 외</th>" : "") + "<th style='text-align:right'>합계</th><th style='text-align:right'>신청</th></tr>" + totalRow +
         days.map((x) => {
           const other = Object.entries(x.sources).filter(([k]) => !top.includes(k)).reduce((n, [, v]) => n + v, 0);
-          return `<tr><td style="white-space:nowrap">${x.date.slice(5).replace("-", "/")}</td>` + top.map((n) => srcCell(x.sources[n] || 0)).join("") + (rest ? srcCell(other) : "") +
+          // 오늘(한국 시간) 줄에 강조 색을 줍니다.
+          return `<tr${x.date === todayKst ? ' style="background:var(--accent-soft)"' : ""}><td style="white-space:nowrap">${x.date.slice(5).replace("-", "/")}</td>` + top.map((n) => srcCell(x.sources[n] || 0)).join("") + (rest ? srcCell(other) : "") +
             `<td style="text-align:right"><b>${x.visitors}</b></td>` + srcCell(x.signups) + "</tr>";
         }).join("")
       : '<tr><td class="muted">아직 방문 기록이 없어요.</td></tr>';
