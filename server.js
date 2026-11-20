@@ -46,15 +46,15 @@ function loadSchedule() {
   return q.allSlots.all().map((s) => ({ ...s, open: Boolean(s.open) }));
 }
 
-// 과정 구분: 회차마다 기본/심화 중 하나를 고르고, 신청 화면에 과정 이름과 수강료를 보여줍니다.
+// 과정 구분: 회차마다 기본(2시간)/정규(3시간) 중 하나를 고르고, 신청 화면에 과정 이름과 수강료를 보여줍니다.
 const COURSES = {
   basic: { name: "기본 과정", hours: 2, price: 30000 },
-  advanced: { name: "심화 과정", hours: 3, price: 55000 },
+  advanced: { name: "정규 과정", hours: 3, price: 55000 },
 };
 const courseOf = (slot) => COURSES[slot.course] || COURSES.basic;
 const won = (n) => n.toLocaleString("ko-KR") + "원";
-// 관리자 화면·알림에서 쓰는 앞머리: 심화 회차만 "[심화] "를 붙여 구분합니다.
-const coursePrefix = (slot) => (slot.course === "advanced" ? "[심화] " : "");
+// 관리자 화면·알림에서 쓰는 앞머리: 3시간 회차만 "[3시간] "을 붙여 구분합니다.
+const coursePrefix = (slot) => (slot.course === "advanced" ? "[3시간] " : "");
 
 function startsAt(slot) {
   return new Date(`${slot.date}T${slot.start}:00+09:00`).getTime();
@@ -216,7 +216,7 @@ if (db.pragma("user_version", { simple: true }) < 1) {
   db.pragma("user_version = 1");
 }
 
-// 1회성 변경: 심화 과정 첫 회차 2개(12월 첫째·둘째 주 일요일 14:00~17:00)를 엽니다.
+// 1회성 변경: 3시간 과정 첫 회차 2개(12월 첫째·둘째 주 일요일 14:00~17:00)를 엽니다.
 // 한 번만 넣기 때문에, 나중에 관리자 화면에서 지우거나 고쳐도 다시 생기지 않아요.
 if (db.pragma("user_version", { simple: true }) < 2) {
   for (const date of ["2026-12-06", "2026-12-13"]) {
@@ -225,7 +225,7 @@ if (db.pragma("user_version", { simple: true }) < 2) {
   db.pragma("user_version = 2");
 }
 
-// 1회성 변경: 11월 28일 회차를 심화 과정(3시간)으로 바꿉니다. 시작 시간은 그대로 두고 끝나는 시간만 3시간 뒤로 맞춰요.
+// 1회성 변경: 11월 28일 회차를 3시간 과정으로 바꿉니다. 시작 시간은 그대로 두고 끝나는 시간만 3시간 뒤로 맞춰요.
 // 한 번만 실행되니, 나중에 관리자 화면에서 다시 고쳐도 덮어쓰지 않아요.
 if (db.pragma("user_version", { simple: true }) < 3) {
   for (const s of db.prepare("SELECT * FROM slots WHERE date = '2026-11-28'").all()) {
@@ -463,13 +463,13 @@ function courseJsonLd() {
   const data = {
     "@context": "https://schema.org",
     "@type": "Course",
-    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 2시간 만에 내 홈페이지 만들기",
-    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 홈페이지를 만들고 배포까지 해보는 강남 오프라인 2시간 입문 강의.",
+    name: "바이브 코딩 입문 클래스: 클로드 코드(Claude Code)로 3시간 만에 내 홈페이지 만들기",
+    description: "코딩을 몰라도 클로드 코드와 대화하며 나만의 홈페이지를 만들고 배포까지 해보는 강남 오프라인 3시간 입문 강의.",
     inLanguage: "ko",
     url: SITE_URL + "/",
     image: SITE_URL + "/og.png?v=3",
     provider: { "@type": "Person", name: "Bill", jobTitle: "IT 회사 15년 차 서비스 기획자", email: "bill@neonex.team" },
-    offers: { "@type": "Offer", category: "Paid", price: 30000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
+    offers: { "@type": "Offer", category: "Paid", price: 55000, priceCurrency: "KRW", availability: "https://schema.org/InStock", url: SITE_URL + "/#apply" },
     hasCourseInstance: openUpcomingSlots().map((s) => ({
       "@type": "CourseInstance",
       courseMode: "Onsite",
@@ -710,7 +710,7 @@ app.post("/api/apply", async (req, res) => {
 
   const taken = q.countSlot.get(slot.id).n;
   if (smsConfigured()) {
-    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)}${slot.course === "advanced" ? " 심화" : ""} 신청 완료. 안내: ${INFO_URL}`)
+    sendSms(t.phone, `[바이브코딩] ${name.slice(0, 5)}님 ${shortSlot(slot)}${slot.course === "advanced" ? " 3시간" : ""} 신청 완료. 안내: ${INFO_URL}`)
       .catch(() => {}); // 확인 문자는 실패해도 신청은 유지
   }
   // 운영자에게 가는 새 신청 알림: ADMIN_PHONE 문자 + 텔레그램. 설정이 없거나 실패해도 신청은 유지돼요.
