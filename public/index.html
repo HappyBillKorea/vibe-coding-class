@@ -291,6 +291,32 @@
   .career li { display: grid; grid-template-columns: 180px 1fr; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: .97rem; }
   .career b { font-weight: 600; }
   .career span { color: var(--muted); }
+  /* 강사가 만든 서비스: 타임마켓 카드 (앱 다크 화면에 맞춘 짙은 그레이) */
+  .made { margin-top: 32px; }
+  .made-h { font-size: 1.1rem; margin: 0 0 12px; }
+  .tm-card { background: #2f3033; border: 1px solid #404145; color: #ecebe8; border-radius: 18px; padding: 24px; }
+  .tm-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tm-logo { display: inline-flex; background: #f4f1eb; border-radius: 12px; padding: 5px 9px; }
+  .tm-logo img { display: block; height: 40px; width: auto; }
+  .tm-chip { font-size: .8rem; font-weight: 700; padding: 4px 11px; border-radius: 999px; background: rgba(210,190,170,.12); color: #dcc4ad; border: 1px solid rgba(210,190,170,.3); }
+  .tm-card h4 { font-size: 1.4rem; margin: 0 0 2px; color: #f1f0ed; }
+  .tm-tag { color: #b4b2ae; font-weight: 600; margin: 0 0 10px; }
+  .tm-card p { color: #d6d4d0; margin: 0 0 12px; }
+  .tm-checks { list-style: none; padding: 0; margin: 0 0 18px; display: grid; gap: 6px; }
+  .tm-checks li { position: relative; padding-left: 26px; color: #d6d4d0; font-size: .95rem; }
+  .tm-checks li::before { content: "✓"; position: absolute; left: 0; top: 2px; width: 18px; height: 18px; border-radius: 50%; background: linear-gradient(120deg, #c4a88e, #9a8068); color: #fff; font-size: 11px; font-weight: 800; display: grid; place-items: center; line-height: 1; }
+  .tm-screens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; background: radial-gradient(120% 90% at 80% 0%, #4a4744 0%, #3a3a3c 55%, #333436 100%); border: 1px solid #46474b; border-radius: 16px; padding: 18px 16px 10px; margin-bottom: 16px; }
+  .tm-screens figure { margin: 0; text-align: center; }
+  .tm-frame { border-radius: 18px; overflow: hidden; border: 4px solid #4f5054; background: #0e0c0b; aspect-ratio: 390 / 782; box-shadow: 0 14px 30px rgba(0,0,0,.35); }
+  .tm-frame img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+  .tm-screens figcaption { margin-top: 8px; font-size: .8rem; font-weight: 700; color: #c8c6c2; }
+  .tm-link { font-weight: 700; color: #dcc4ad; text-decoration: none; }
+  .tm-link:hover { text-decoration: underline; text-underline-offset: 4px; }
+  @media (max-width: 640px) {
+    .tm-card { padding: 18px; }
+    .tm-screens { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; padding: 14px 12px 8px; }
+    .tm-screens figure { flex: 0 0 62%; scroll-snap-align: center; }
+  }
 
   /* 결과물 */
   .works { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -654,7 +680,7 @@
           <li><b>7곳</b><span>IT 회사 재직</span></li>
           <li><b>5개</b><span>바이브 코딩 서비스 론칭</span></li>
         </ul>
-        <p class="now">🚀 현재 앱 서비스 1개 출시 준비 중</p>
+        <p class="now">🚀 현재 앱 서비스 <a href="#made">타임마켓</a> 출시 준비 중 (2027년 1월)</p>
         <ul class="logos" aria-label="거쳐 온 회사">
           <li>neonex</li><li>AJ파크</li><li>kth</li><li>AhnLab</li>
         </ul>
@@ -666,6 +692,31 @@
           <li><b>닷네임코리아</b><span>Planning Leader</span></li>
           <li><b>안랩</b><span>Communication Team</span></li>
         </ul>
+
+        <!-- 강사가 만든 서비스: 타임마켓 (intimecorp.com 소개와 같은 내용) -->
+        <div class="made" id="made">
+          <h3 class="made-h">강사가 만든 서비스</h3>
+          <article class="tm-card">
+            <div class="tm-top">
+              <a class="tm-logo" href="https://timemrkt.com" target="_blank" rel="noopener"><img src="/timemarket/logo.svg" alt="타임마켓 TIMEMARKET" width="180" height="77"></a>
+              <span class="tm-chip">2027년 1월 정식 출시</span>
+            </div>
+            <h4>타임마켓</h4>
+            <p class="tm-tag">사람의 시간을 사고파는 마켓플레이스</p>
+            <p>밥 한 끼, 커피 한 잔, 커리어 상담 1시간처럼 내 시간을 상품으로 올리고, 그 시간이 필요한 사람이 구매합니다.</p>
+            <ul class="tm-checks">
+              <li>실명 인증 회원끼리 거래</li>
+              <li>앱 안에서 카드 결제와 메시지</li>
+              <li>만남이 끝난 뒤 정산되는 안전한 거래</li>
+            </ul>
+            <div class="tm-screens" aria-label="타임마켓 실제 앱 화면">
+              <figure><div class="tm-frame"><img src="/timemarket/signup.webp" alt="타임마켓 시작 화면: 회원가입과 로그인" loading="lazy" width="600" height="1298"></div><figcaption>회원가입</figcaption></figure>
+              <figure><div class="tm-frame"><img src="/timemarket/home.webp" alt="타임마켓 홈 화면" loading="lazy" width="600" height="1203"></div><figcaption>홈</figcaption></figure>
+              <figure><div class="tm-frame"><img src="/timemarket/list.webp" alt="타임마켓 타임판매 목록 화면" loading="lazy" width="600" height="1203"></div><figcaption>타임판매 목록</figcaption></figure>
+            </div>
+            <a class="tm-link" href="https://timemrkt.com" target="_blank" rel="noopener">timemrkt.com 둘러보기 →</a>
+          </article>
+        </div>
       </section>
 
       <!-- STUDENT SHOWCASE: 수강생이 수업 당일 직접 만들어 배포한 사이트 -->
