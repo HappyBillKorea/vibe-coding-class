@@ -151,6 +151,12 @@
   .preview .cta { display: inline-block; background: #8a8178; color: #fff; font-size: .72rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; transition: all .6s; }
   .preview.warm .body { background: #fdeee2; color: #1c1917; }
   .preview.warm .cta { background: var(--accent); font-size: .85rem; padding: 7px 16px; }
+  .preview .extra { font-size: .72rem; color: var(--muted); line-height: 1.5; }
+  .preview .extra:not(:empty) { margin-top: 8px; animation: pop .35s ease both; }
+  .preview.warm .extra { color: #57534e; }
+  .bub.ai .live { display: block; width: fit-content; margin: 6px 0; padding: 5px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); font-weight: 700; font-size: .82rem; }
+  .chat-log { transition: opacity .5s; }
+  .chat-log.fade { opacity: 0; }
   .chat-input { display: flex; align-items: center; gap: 8px; margin: 0 12px 12px; padding: 9px 10px 9px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); min-height: 44px; }
   .chat-input .txt { flex: 1; color: var(--ink); }
   .chat-input .txt:empty::before { content: "Claude에게 말해 보세요"; color: var(--muted); }
@@ -932,14 +938,33 @@
       await wait(500);
       await say("우리 동네 빵집 소개 페이지 만들어줘. 메뉴랑 예약 버튼도 넣어줘");
       await think();
-      const m = ai('페이지를 만들었어요!<ul><li>메뉴 섹션</li><li>예약 버튼</li><li>모바일 화면 대응</li></ul><div class="preview"><div class="bar"></div><div class="body"><b>🥐 동네빵집</b><div class="menu">소금빵 · 크루아상 · 식빵</div><span class="cta">예약하기</span></div></div>');
+      const m = ai('페이지를 만들었어요!<ul><li>메뉴 섹션</li><li>예약 버튼</li><li>모바일 화면 대응</li></ul><div class="preview"><div class="bar"></div><div class="body"><b>🥐 동네빵집</b><div class="menu">소금빵 · 크루아상 · 식빵</div><span class="cta">예약하기</span><div class="extra"></div></div></div>');
+      const pv = m.querySelector(".preview");
       await wait(1600);
       await say("색을 좀 더 따뜻하게, 버튼은 크게");
       await think();
-      m.querySelector(".preview").classList.add("warm");
+      pv.classList.add("warm");
       ai("수정 완료! 따뜻한 색으로 바꾸고 예약 버튼을 키웠어요.");
+      await wait(1600);
+      await say("영업시간이랑 오시는 길도 넣어줘");
+      await think();
+      pv.querySelector(".extra").innerHTML = "⏰ 매일 8:00~20:00<br>📍 행복동 12-3, 지도 보기";
+      ai("추가했어요!<ul><li>영업시간 안내</li><li>지도로 오시는 길</li></ul>");
+      await wait(1600);
+      await say("좋아! 이제 인터넷에 올려줘");
+      await think();
+      ai('사이트를 공개했어요 🎉<div class="live">🔗 dongne-bread.site</div>친구들에게 주소를 보내 보세요.');
     }
-    run();
+    async function loop() {
+      for (;;) {
+        await run();
+        if (reduce) return;
+        await wait(4000);
+        log.classList.add("fade"); await wait(600);
+        log.innerHTML = ""; log.classList.remove("fade");
+      }
+    }
+    loop();
   })();
 </script>
 </body>
